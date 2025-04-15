@@ -1,0 +1,10 @@
+<svg width="272" height="92" viewBox="0 0 272 92" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M40.5 20C29.7 20 21 28.7 21 39.5V52.5C21 63.3 29.7 72 40.5 72H53.5C64.3 72 73 63.3 73 52.5V39.5C73 28.7 64.3 20 53.5 20H40.5Z" fill="#4285F4"/>
+  <path d="M101.5 20C90.7 20 82 28.7 82 39.5V52.5C82 63.3 90.7 72 101.5 72H114.5C125.3 72 134 63.3 134 52.5V39.5C134 28.7 125.3 20 114.5 20H101.5Z" fill="#EA4335"/>
+  <path d="M162.5 20C151.7 20 143 28.7 143 39.5V52.5C143 63.3 151.7 72 162.5 72H175.5C186.3 72 195 63.3 195 52.5V39.5C195 28.7 186.3 20 175.5 20H162.5Z" fill="#FBBC05"/>
+  <path d="M223.5 20C212.7 20 204 28.7 204 39.5V52.5C204 63.3 212.7 72 223.5 72H236.5C247.3 72 256 63.3 256 52.5V39.5C256 28.7 247.3 20 236.5 20H223.5Z" fill="#34A853"/>
+  <text x="47" y="50" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">UOR</text>
+  <text x="108" y="50" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">FOU</text>
+  <text x="169" y="50" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">NDA</text>
+  <text x="230" y="50" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">TION</text>
+</svg>
