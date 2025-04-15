@@ -1,0 +1,19 @@
+/* Font face declarations with font-display: swap */
+@font-face {
+  font-family: "Inter var";
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+  font-named-instance: "Regular";
+  src: url("/fonts/inter-var.woff2") format("woff2");
+}
+
+/* Font class helpers */
+.font-loaded {
+  opacity: 1;
+  transition: opacity 0.1s ease;
+}
+
+.font-loading {
+  opacity: 0.8;
+}

@@ -1,0 +1,266 @@
+import type React from "react"
+import type { Metadata } from "next"
+import { Inter } from "next/font/google"
+import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
+import FloatingStatusBar from "@/components/floating-status-bar"
+import PerformanceMonitor from "@/components/performance-monitor"
+import "./font-face.css"
+import { UORConceptOverlay } from "@/components/uor-concept-overlay"
+
+// Optimize font loading with display swap
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  preload: true,
+})
+
+export const metadata: Metadata = {
+  title: "UOR Foundation",
+  description:
+    "UOR Foundation - Building the infrastructure for an internet where data is sovereign, semantic, and empowering.",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=5",
+  themeColor: "#000000",
+    generator: 'v0.dev'
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en" suppressHydrationWarning className="scroll-smooth">
+      <head>
+        <meta charSet="utf-8" />
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+
+        {/* Preload critical assets */}
+        <link rel="preload" href="/uor-hero-enclosed.png" as="image" type="image/png" />
+        <link rel="preload" href="/uor-foundation-logo.svg" as="image" type="image/svg+xml" />
+        <link rel="preload" href="/uor-geometric-white.svg" as="image" type="image/svg+xml" />
+        <link rel="preload" href="/uor_god.svg" as="image" type="image/svg+xml" />
+
+        {/* Font loading optimization script */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+      // Font loading optimization
+      if ("fonts" in document) {
+        document.documentElement.classList.add('font-loading');
+        
+        Promise.all([
+          document.fonts.load('1em "Inter var"')
+        ]).then(() => {
+          document.documentElement.classList.remove('font-loading');
+          document.documentElement.classList.add('font-loaded');
+        });
+      }
+    `,
+          }}
+        />
+
+        {/* Wallet error handling script */}
+        <script
+          defer
+          dangerouslySetInnerHTML={{
+            __html: `
+    // Comprehensive error handling for wallet/provider issues
+    (function() {
+      // Create a more robust mock ethereum provider
+      if (typeof window !== 'undefined') {
+        // Intercept and block all sender_getProviderState requests
+        const originalPostMessage = window.postMessage;
+        window.postMessage = function(...args) {
+          if (args[0] && typeof args[0] === 'object' && 
+              (args[0].method === 'sender_getProviderState' || 
+               (typeof args[0] === 'string' && args[0].includes('sender_getProviderState')))) {
+            console.log('Blocked sender_getProviderState postMessage');
+            return;
+          }
+          return originalPostMessage.apply(this, args);
+        };
+        
+        // Block any message event listeners that might process wallet messages
+        const originalAddEventListener = window.addEventListener;
+        window.addEventListener = function(type, listener, options) {
+          if (type === 'message') {
+            const wrappedListener = function(event) {
+              if (event && event.data && 
+                  ((typeof event.data === 'object' && event.data.method === 'sender_getProviderState') ||
+                   (typeof event.data === 'string' && event.data.includes('sender_getProviderState')))) {
+                console.log('Blocked sender_getProviderState message event');
+                return;
+              }
+              return listener.apply(this, arguments);
+            };
+            return originalAddEventListener.call(this, type, wrappedListener, options);
+          }
+          return originalAddEventListener.apply(this, arguments);
+        };
+        
+        // Mock ethereum provider to prevent errors
+        window.ethereum = {
+          isMetaMask: false,
+          request: function(args) {
+            console.log('Mocked ethereum request:', args?.method);
+            return Promise.resolve([]);
+          },
+          on: function() {},
+          removeListener: function() {},
+          // Add additional methods that might be called
+          enable: function() { return Promise.resolve([]); },
+          sendAsync: function(_, callback) { 
+            if (callback) callback(null, { result: [] }); 
+          },
+          send: function(_, callback) { 
+            if (callback) callback(null, { result: [] }); 
+            return { result: [] }; 
+          },
+          selectedAddress: null,
+          networkVersion: '1',
+          chainId: '0x1'
+        };
+        
+        // Intercept and prevent any sender_getProviderState calls via fetch
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+          const url = args[0]?.url || args[0];
+          const body = args[1]?.body;
+          
+          if (body && typeof body === 'string' && body.includes('sender_getProviderState')) {
+            console.log('Intercepted sender_getProviderState fetch call');
+            return Promise.resolve({
+              ok: true,
+              json: () => Promise.resolve({ result: { accounts: [] } }),
+              text: () => Promise.resolve('{"result":{"accounts":[]}}')
+            });
+          }
+          
+          return originalFetch.apply(this, args);
+        };
+        
+        // Prevent any direct calls to window.ethereum methods
+        Object.defineProperty(window, 'ethereum', {
+          get: function() {
+            return {
+              isMetaMask: false,
+              request: function(args) {
+                if (args && args.method === 'sender_getProviderState') {
+                  console.log('Blocked direct sender_getProviderState call');
+                  return Promise.resolve({ accounts: [] });
+                }
+                return Promise.resolve([]);
+              },
+              on: function() {},
+              removeListener: function() {},
+              enable: function() { return Promise.resolve([]); },
+              sendAsync: function(payload, callback) {
+                if (payload && payload.method === 'sender_getProviderState') {
+                  console.log('Blocked sendAsync sender_getProviderState call');
+                  if (callback) callback(null, { result: { accounts: [] } });
+                  return;
+                }
+                if (callback) callback(null, { result: [] });
+              },
+              send: function(payload, callback) {
+                if (payload && payload.method === 'sender_getProviderState') {
+                  console.log('Blocked send sender_getProviderState call');
+                  if (callback) callback(null, { result: { accounts: [] } });
+                  return { result: { accounts: [] } };
+                }
+                if (callback) callback(null, { result: [] });
+                return { result: [] };
+              },
+              selectedAddress: null,
+              networkVersion: '1',
+              chainId: '0x1'
+            };
+          },
+          set: function() {},
+          configurable: true
+        });
+      }
+      
+      // Prevent wallet connection errors
+      window.addEventListener('error', function(event) {
+        if (event.message && (
+          event.message.includes('wallet') || 
+          event.message.includes('provider') || 
+          event.message.includes('account') ||
+          event.message.includes('ethereum') ||
+          event.message.includes('No account exist') ||
+          event.message.includes('sender_getProviderState')
+        )) {
+          console.warn('Suppressed wallet connection error:', event.message);
+          event.preventDefault();
+          return true;
+        }
+      });
+
+      // Handle unhandled promise rejections related to wallets
+      window.addEventListener('unhandledrejection', function(event) {
+        if (event.reason && 
+            (typeof event.reason === 'object' || typeof event.reason === 'string') &&
+            (String(event.reason).includes('wallet') || 
+             String(event.reason).includes('provider') || 
+             String(event.reason).includes('account') ||
+             String(event.reason).includes('ethereum') ||
+             String(event.reason).includes('No account exist') ||
+             String(event.reason).includes('sender_getProviderState'))) {
+          console.warn('Suppressed unhandled wallet promise rejection:', event.reason);
+          event.preventDefault();
+        }
+      });
+      
+      // Create a global variable to indicate wallet connections should be blocked
+      window.__BLOCK_WALLET_CONNECTIONS__ = true;
+    })();
+  `,
+          }}
+        />
+
+        {/* Service worker registration - moved to end of body for better performance */}
+      </head>
+      <body className={`${inter.className} overflow-x-hidden pb-10`}>
+        <ThemeProvider defaultTheme="system">
+          {children}
+          <UORConceptOverlay />
+        </ThemeProvider>
+        <FloatingStatusBar />
+        <PerformanceMonitor />
+
+        {/* Move service worker registration to end of body */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+      // Register service worker for production
+      if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+        window.addEventListener('load', function() {
+          setTimeout(function() {
+            navigator.serviceWorker.register('/sw.js').then(
+              function(registration) {
+                console.log('ServiceWorker registration successful with scope: ', registration.scope);
+              },
+              function(err) {
+                console.log('ServiceWorker registration failed: ', err);
+              }
+            );
+          }, 1000); // Delay service worker registration
+        });
+      }
+    `,
+          }}
+        />
+      </body>
+    </html>
+  )
+}
+
+
+import './globals.css'
