@@ -34,8 +34,34 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className="scroll-smooth">
       <head>
         <meta charSet="utf-8" />
-        {/* Load environment variables before other scripts */}
-        <script src={`${ENV.NEXT_PUBLIC_BASE_PATH}/env-config.js`}></script>
+        {/* Inline environment loader script to avoid 404 errors */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          // Auto-detect the base path
+          (function() {
+            const pathname = window.location.pathname;
+            let basePath = '';
+            
+            // The URL path will be like: /repo-name or /repo-name/staging-123
+            const pathParts = pathname.split('/').filter(Boolean);
+            
+            if (pathParts.length > 0) {
+              // First part is always the repo name
+              basePath = '/' + pathParts[0];
+              
+              // If there's a staging prefix, add it
+              if (pathParts.length > 1 && pathParts[1].startsWith('staging-')) {
+                basePath += '/' + pathParts[1];
+              }
+            }
+            
+            // Set the environment variables
+            window.__ENV__ = {
+              NEXT_PUBLIC_BASE_PATH: basePath
+            };
+            
+            console.log('Auto-detected base path:', basePath);
+          })();
+        `}} />
         <link rel="icon" href={`${ENV.NEXT_PUBLIC_BASE_PATH}/favicon.ico`} />
         <link rel="preload" href={`${ENV.NEXT_PUBLIC_BASE_PATH}/fonts/inter-var.woff2`} as="font" type="font/woff2" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -238,24 +264,38 @@ export default function RootLayout({
         <FloatingStatusBar />
         <PerformanceMonitor />
 
-        {/* Move service worker registration to end of body */}
+        {/* Move service worker registration to end of body - with better error handling */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-      // Register service worker for production
+      // Register service worker for production, with better GitHub Pages compatibility
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
           setTimeout(function() {
-            // Use the environment variable from the injected script
-            const basePath = window.__ENV__?.NEXT_PUBLIC_BASE_PATH || '';
-            navigator.serviceWorker.register(basePath + '/sw.js').then(
-              function(registration) {
-                console.log('ServiceWorker registration successful with scope: ', registration.scope);
-              },
-              function(err) {
-                console.log('ServiceWorker registration failed: ', err);
-              }
-            );
+            try {
+              // Use the environment variable from the injected script
+              const basePath = window.__ENV__?.NEXT_PUBLIC_BASE_PATH || '';
+              const swPath = basePath + '/sw.js';
+              
+              // Only register if we detect the service worker exists
+              fetch(swPath, { method: 'HEAD' })
+                .then(response => {
+                  if (response.ok) {
+                    return navigator.serviceWorker.register(swPath);
+                  } else {
+                    console.log('ServiceWorker file not found at: ' + swPath);
+                    return Promise.reject('ServiceWorker not found');
+                  }
+                })
+                .then(registration => {
+                  console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                })
+                .catch(err => {
+                  console.log('ServiceWorker registration skipped: ', err);
+                });
+            } catch (e) {
+              console.log('Error in service worker registration:', e);
+            }
           }, 1000); // Delay service worker registration
         });
       }

@@ -45,10 +45,17 @@ jobs:
         run: pnpm run lint --no-cache || true
       - name: TypeCheck
         run: pnpm run typecheck || true
+      - name: Get repository name for GitHub Pages URL pathing
+        id: repo-name
+        run: |
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          echo "REPO_NAME=$REPO_NAME" >> $GITHUB_OUTPUT
+          echo "Repository name: $REPO_NAME"
+
       - name: Build static site
         run: pnpm run build
         env:
-          NEXT_PUBLIC_BASE_PATH: ${{ github.event_name == 'pull_request' && format('/staging-{0}', github.event.pull_request.number) || '' }}
+          NEXT_PUBLIC_BASE_PATH: ${{ github.event_name == 'pull_request' && format('/{0}/staging-{1}', steps.repo-name.outputs.REPO_NAME, github.event.pull_request.number) || format('/{0}', steps.repo-name.outputs.REPO_NAME) }}
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -61,11 +68,20 @@ jobs:
       name: ${{ needs.build.outputs.is_pr == 'true' && format('staging-{0}', needs.build.outputs.pr_number) || 'github-pages' }}
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Get repository name for debugging
+        id: deploy-repo-name
+        run: |
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          echo "REPO_NAME=$REPO_NAME" >> $GITHUB_OUTPUT
+          
       - name: Setup environment info
         run: |
           echo "Is PR? ${{ needs.build.outputs.is_pr }}"
           echo "PR Number: ${{ needs.build.outputs.pr_number }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Repo Name: ${{ steps.deploy-repo-name.outputs.REPO_NAME }}"
           echo "Environment: ${{ needs.build.outputs.is_pr == 'true' && format('staging-{0}', needs.build.outputs.pr_number) || 'github-pages' }}"
+          echo "Base Path: ${{ github.event_name == 'pull_request' && format('/{0}/staging-{1}', steps.deploy-repo-name.outputs.REPO_NAME, github.event.pull_request.number) || format('/{0}', steps.deploy-repo-name.outputs.REPO_NAME) }}"
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

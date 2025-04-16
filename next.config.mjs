@@ -23,8 +23,13 @@ const nextConfig = {
     unoptimized: true,
   },
   output: 'export',
+  // Dynamic base path based on the environment variable set during build
   basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
   assetPrefix: process.env.NEXT_PUBLIC_BASE_PATH || '',
+  // Add trailing slash for better GitHub Pages compatibility
+  trailingSlash: true,
+  // Disable strict mode for GitHub Pages compatibility
+  reactStrictMode: false,
   experimental: {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
