@@ -36,29 +36,13 @@ export default function RootLayout({
         <meta charSet="utf-8" />
         {/* Inline environment loader script to avoid 404 errors */}
         <script dangerouslySetInnerHTML={{ __html: `
-          // Auto-detect the base path for previews
+          // Initialize environment variables
           (function() {
-            const pathname = window.location.pathname;
-            let basePath = '';
-            
-            // Check for PR preview pattern in the URL path
-            // Example: /homepage/pr-preview/123/
-            if (pathname.includes('/pr-preview/')) {
-              const pathParts = pathname.split('/');
-              const previewIndex = pathParts.findIndex(part => part === 'pr-preview');
-              
-              if (previewIndex >= 0) {
-                // Combine all parts up to and including the PR number
-                basePath = pathParts.slice(0, previewIndex + 2).join('/');
-              }
-            }
-            
-            // Set the environment variables
+            // Since this site is deployed to GitHub Pages at the root level,
+            // we don't need any base path
             window.__ENV__ = {
-              NEXT_PUBLIC_BASE_PATH: basePath
+              NEXT_PUBLIC_BASE_PATH: ''
             };
-            
-            console.log('Auto-detected base path:', basePath);
           })();
         `}} />
         <link rel="icon" href={`${ENV.NEXT_PUBLIC_BASE_PATH}/favicon.ico`} />
