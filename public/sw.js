@@ -1,37 +1,23 @@
 // Service Worker for UOR Foundation Website
 const CACHE_NAME = "uor-foundation-cache-v1"
 
-// Detect base path for GitHub Pages based on the service worker's location
-// GitHub Pages serves from URLs like username.github.io/repo-name/
-// or username.github.io/repo-name/staging-123/
+// Detect if we're in a staging environment for GitHub Pages
 let BASE_PATH = '';
 
-// Try to extract from the service worker's location
+// Try to extract staging path from the service worker's location
 const swLocation = self.location.pathname;
-const pathSegments = swLocation.split('/').filter(Boolean);
-
-if (pathSegments.length > 0) {
-  // First segment is always the repo name for GitHub Pages
-  BASE_PATH = '/' + pathSegments[0];
-  
-  // If there's a staging path, add it too
-  if (pathSegments.length > 1 && pathSegments[1].startsWith('staging-')) {
-    BASE_PATH += '/' + pathSegments[1];
-  }
+const stagingMatch = swLocation.match(/\/staging-(\d+)/);
+if (stagingMatch) {
+  BASE_PATH = stagingMatch[0]; // e.g., "/staging-123"
 }
 
 // Fallback to registration scope if available
 if (!BASE_PATH && self.registration) {
   const scope = self.registration.scope;
   const scopeUrl = new URL(scope);
-  const scopePathSegments = scopeUrl.pathname.split('/').filter(Boolean);
-  
-  if (scopePathSegments.length > 0) {
-    BASE_PATH = '/' + scopePathSegments[0];
-    
-    if (scopePathSegments.length > 1 && scopePathSegments[1].startsWith('staging-')) {
-      BASE_PATH += '/' + scopePathSegments[1];
-    }
+  const scopeStagingMatch = scopeUrl.pathname.match(/\/staging-(\d+)/);
+  if (scopeStagingMatch) {
+    BASE_PATH = scopeStagingMatch[0]; // e.g., "/staging-123"
   }
 }
 

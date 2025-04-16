@@ -36,22 +36,15 @@ export default function RootLayout({
         <meta charSet="utf-8" />
         {/* Inline environment loader script to avoid 404 errors */}
         <script dangerouslySetInnerHTML={{ __html: `
-          // Auto-detect the base path
+          // Auto-detect the base path - only checking for staging environments
           (function() {
             const pathname = window.location.pathname;
             let basePath = '';
             
-            // The URL path will be like: /repo-name or /repo-name/staging-123
-            const pathParts = pathname.split('/').filter(Boolean);
-            
-            if (pathParts.length > 0) {
-              // First part is always the repo name
-              basePath = '/' + pathParts[0];
-              
-              // If there's a staging prefix, add it
-              if (pathParts.length > 1 && pathParts[1].startsWith('staging-')) {
-                basePath += '/' + pathParts[1];
-              }
+            // Check for staging environment pattern
+            const stagingMatch = pathname.match(/\\/staging-(\\d+)/);
+            if (stagingMatch) {
+              basePath = stagingMatch[0]; // e.g., "/staging-123"
             }
             
             // Set the environment variables
