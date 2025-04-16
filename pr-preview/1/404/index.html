@@ -1,0 +1,216 @@
+<!DOCTYPE html><html lang="en" class="scroll-smooth"><head><meta charSet="utf-8"/><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="preload" href="/_next/static/media/a34f9d1faa5f3315-s.p.woff2" as="font" crossorigin="" type="font/woff2"/><link rel="stylesheet" href="/_next/static/css/61baa97eb3e390b9.css" data-precedence="next"/><link rel="stylesheet" href="/_next/static/css/946d38bb008e06a6.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/_next/static/chunks/webpack-44877ec335982324.js"/><script src="/_next/static/chunks/b89be8bd-08998d7b3c18823d.js" async=""></script><script src="/_next/static/chunks/80-291472d8c4c42219.js" async=""></script><script src="/_next/static/chunks/main-app-df2c2bc9e264cdcf.js" async=""></script><script src="/_next/static/chunks/651-6bbcaab691607364.js" async=""></script><script src="/_next/static/chunks/app/layout-6d869f1f77531554.js" async=""></script><meta name="robots" content="noindex"/><meta name="next-size-adjust" content=""/><title>404: This page could not be found.</title><link rel="icon" href="/favicon.ico"/><link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin="anonymous"/><link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"/><link rel="dns-prefetch" href="https://fonts.googleapis.com"/><link rel="dns-prefetch" href="https://fonts.gstatic.com"/><link rel="preload" href="/uor-hero-enclosed.png" as="image" type="image/png"/><link rel="preload" href="/uor-foundation-logo.svg" as="image" type="image/svg+xml"/><link rel="preload" href="/uor-geometric-white.svg" as="image" type="image/svg+xml"/><link rel="preload" href="/uor_god.svg" as="image" type="image/svg+xml"/><title>UOR Foundation</title><meta name="description" content="UOR Foundation - Building the infrastructure for an internet where data is sovereign, semantic, and empowering."/><meta name="generator" content="v0.dev"/><script>
+          // Auto-detect the base path - only checking for staging environments
+          (function() {
+            const pathname = window.location.pathname;
+            let basePath = '';
+            
+            // Check for staging environment pattern
+            const stagingMatch = pathname.match(/\/staging-(\d+)/);
+            if (stagingMatch) {
+              basePath = stagingMatch[0]; // e.g., "/staging-123"
+            }
+            
+            // Set the environment variables
+            window.__ENV__ = {
+              NEXT_PUBLIC_BASE_PATH: basePath
+            };
+            
+            console.log('Auto-detected base path:', basePath);
+          })();
+        </script><script>
+      // Font loading optimization
+      if ("fonts" in document) {
+        document.documentElement.classList.add('font-loading');
+        
+        Promise.all([
+          document.fonts.load('1em "Inter var"')
+        ]).then(() => {
+          document.documentElement.classList.remove('font-loading');
+          document.documentElement.classList.add('font-loaded');
+        });
+      }
+    </script><script defer="">
+    // Comprehensive error handling for wallet/provider issues
+    (function() {
+      // Create a more robust mock ethereum provider
+      if (typeof window !== 'undefined') {
+        // Intercept and block all sender_getProviderState requests
+        const originalPostMessage = window.postMessage;
+        window.postMessage = function(...args) {
+          if (args[0] && typeof args[0] === 'object' && 
+              (args[0].method === 'sender_getProviderState' || 
+               (typeof args[0] === 'string' && args[0].includes('sender_getProviderState')))) {
+            console.log('Blocked sender_getProviderState postMessage');
+            return;
+          }
+          return originalPostMessage.apply(this, args);
+        };
+        
+        // Block any message event listeners that might process wallet messages
+        const originalAddEventListener = window.addEventListener;
+        window.addEventListener = function(type, listener, options) {
+          if (type === 'message') {
+            const wrappedListener = function(event) {
+              if (event && event.data && 
+                  ((typeof event.data === 'object' && event.data.method === 'sender_getProviderState') ||
+                   (typeof event.data === 'string' && event.data.includes('sender_getProviderState')))) {
+                console.log('Blocked sender_getProviderState message event');
+                return;
+              }
+              return listener.apply(this, arguments);
+            };
+            return originalAddEventListener.call(this, type, wrappedListener, options);
+          }
+          return originalAddEventListener.apply(this, arguments);
+        };
+        
+        // Mock ethereum provider to prevent errors
+        window.ethereum = {
+          isMetaMask: false,
+          request: function(args) {
+            console.log('Mocked ethereum request:', args?.method);
+            return Promise.resolve([]);
+          },
+          on: function() {},
+          removeListener: function() {},
+          // Add additional methods that might be called
+          enable: function() { return Promise.resolve([]); },
+          sendAsync: function(_, callback) { 
+            if (callback) callback(null, { result: [] }); 
+          },
+          send: function(_, callback) { 
+            if (callback) callback(null, { result: [] }); 
+            return { result: [] }; 
+          },
+          selectedAddress: null,
+          networkVersion: '1',
+          chainId: '0x1'
+        };
+        
+        // Intercept and prevent any sender_getProviderState calls via fetch
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+          const url = args[0]?.url || args[0];
+          const body = args[1]?.body;
+          
+          if (body && typeof body === 'string' && body.includes('sender_getProviderState')) {
+            console.log('Intercepted sender_getProviderState fetch call');
+            return Promise.resolve({
+              ok: true,
+              json: () => Promise.resolve({ result: { accounts: [] } }),
+              text: () => Promise.resolve('{"result":{"accounts":[]}}')
+            });
+          }
+          
+          return originalFetch.apply(this, args);
+        };
+        
+        // Prevent any direct calls to window.ethereum methods
+        Object.defineProperty(window, 'ethereum', {
+          get: function() {
+            return {
+              isMetaMask: false,
+              request: function(args) {
+                if (args && args.method === 'sender_getProviderState') {
+                  console.log('Blocked direct sender_getProviderState call');
+                  return Promise.resolve({ accounts: [] });
+                }
+                return Promise.resolve([]);
+              },
+              on: function() {},
+              removeListener: function() {},
+              enable: function() { return Promise.resolve([]); },
+              sendAsync: function(payload, callback) {
+                if (payload && payload.method === 'sender_getProviderState') {
+                  console.log('Blocked sendAsync sender_getProviderState call');
+                  if (callback) callback(null, { result: { accounts: [] } });
+                  return;
+                }
+                if (callback) callback(null, { result: [] });
+              },
+              send: function(payload, callback) {
+                if (payload && payload.method === 'sender_getProviderState') {
+                  console.log('Blocked send sender_getProviderState call');
+                  if (callback) callback(null, { result: { accounts: [] } });
+                  return { result: { accounts: [] } };
+                }
+                if (callback) callback(null, { result: [] });
+                return { result: [] };
+              },
+              selectedAddress: null,
+              networkVersion: '1',
+              chainId: '0x1'
+            };
+          },
+          set: function() {},
+          configurable: true
+        });
+      }
+      
+      // Prevent wallet connection errors
+      window.addEventListener('error', function(event) {
+        if (event.message && (
+          event.message.includes('wallet') || 
+          event.message.includes('provider') || 
+          event.message.includes('account') ||
+          event.message.includes('ethereum') ||
+          event.message.includes('No account exist') ||
+          event.message.includes('sender_getProviderState')
+        )) {
+          console.warn('Suppressed wallet connection error:', event.message);
+          event.preventDefault();
+          return true;
+        }
+      });
+
+      // Handle unhandled promise rejections related to wallets
+      window.addEventListener('unhandledrejection', function(event) {
+        if (event.reason && 
+            (typeof event.reason === 'object' || typeof event.reason === 'string') &&
+            (String(event.reason).includes('wallet') || 
+             String(event.reason).includes('provider') || 
+             String(event.reason).includes('account') ||
+             String(event.reason).includes('ethereum') ||
+             String(event.reason).includes('No account exist') ||
+             String(event.reason).includes('sender_getProviderState'))) {
+          console.warn('Suppressed unhandled wallet promise rejection:', event.reason);
+          event.preventDefault();
+        }
+      });
+      
+      // Create a global variable to indicate wallet connections should be blocked
+      window.__BLOCK_WALLET_CONNECTIONS__ = true;
+    })();
+  </script><script src="/_next/static/chunks/polyfills-42372ed130431b0a.js" noModule=""></script></head><body class="__className_d65c78 overflow-x-hidden pb-10"><!--$--><div style="font-family:system-ui,&quot;Segoe UI&quot;,Roboto,Helvetica,Arial,sans-serif,&quot;Apple Color Emoji&quot;,&quot;Segoe UI Emoji&quot;;height:100vh;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center"><div><style>body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}</style><h1 class="next-error-h1" style="display:inline-block;margin:0 20px 0 0;padding:0 23px 0 0;font-size:24px;font-weight:500;vertical-align:top;line-height:49px">404</h1><div style="display:inline-block"><h2 style="font-size:14px;font-weight:400;line-height:49px;margin:0">This page could not be found.</h2></div></div></div><!--/$--><div class="fixed bottom-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-sm border-t border-white/10 py-1.5 sm:py-2 px-3 sm:px-4"><div class="max-w-7xl mx-auto grid grid-cols-3 sm:grid-cols-3 items-center text-xs"><div class="flex justify-start"><div class="text-white/70 text-xs sm:text-sm flex items-center"><span class="hidden sm:inline">System Time:</span><span class="ml-1 font-mono">4:21:01 AM</span></div></div><div class="flex justify-center items-center"><div class="flex items-center text-xs sm:text-sm"><div class="flex items-center"><span class="text-white/70"><span class="hidden sm:inline">Kernel Status:</span> <!-- -->Not awake</span><div class="relative ml-1 sm:ml-1.5"><div class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-red-600/60 relative z-10 kernel-pulse-subtle"></div><div class="absolute -inset-0.25 bg-red-500/15 rounded-full blur-[1px] kernel-pulse-subtle"></div></div></div></div></div><div class="flex justify-end"><a target="_blank" rel="noopener noreferrer" class="text-xs text-white/50 hover:text-white/80 transition-colors truncate" href="https://en.wikipedia.org/wiki/Tesla_Experimental_Station">38.8590° N, 104.8214° W</a></div></div></div><script>
+      // Register service worker for production, with better GitHub Pages compatibility
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          setTimeout(function() {
+            try {
+              // Use the environment variable from the injected script
+              const basePath = window.__ENV__?.NEXT_PUBLIC_BASE_PATH || '';
+              const swPath = basePath + '/sw.js';
+              
+              // Only register if we detect the service worker exists
+              fetch(swPath, { method: 'HEAD' })
+                .then(response => {
+                  if (response.ok) {
+                    return navigator.serviceWorker.register(swPath);
+                  } else {
+                    console.log('ServiceWorker file not found at: ' + swPath);
+                    return Promise.reject('ServiceWorker not found');
+                  }
+                })
+                .then(registration => {
+                  console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                })
+                .catch(err => {
+                  console.log('ServiceWorker registration skipped: ', err);
+                });
+            } catch (e) {
+              console.log('Error in service worker registration:', e);
+            }
+          }, 1000); // Delay service worker registration
+        });
+      }
+    </script><script src="/_next/static/chunks/webpack-44877ec335982324.js" async=""></script><script>(self.__next_f=self.__next_f||[]).push([0])</script><script>self.__next_f.push([1,"1:\"$Sreact.fragment\"\n3:I[3099,[\"651\",\"static/chunks/651-6bbcaab691607364.js\",\"177\",\"static/chunks/app/layout-6d869f1f77531554.js\"],\"ThemeProvider\"]\n4:I[5585,[],\"\"]\n5:I[1589,[],\"\"]\n6:I[7643,[\"651\",\"static/chunks/651-6bbcaab691607364.js\",\"177\",\"static/chunks/app/layout-6d869f1f77531554.js\"],\"UORConceptOverlay\"]\n7:I[1667,[\"651\",\"static/chunks/651-6bbcaab691607364.js\",\"177\",\"static/chunks/app/layout-6d869f1f77531554.js\"],\"default\"]\n8:I[290,[\"651\",\"static/chunks/651-6bbcaab691607364.js\",\"177\",\"static/chunks/app/layout-6d869f1f77531554.js\"],\"default\"]\na:I[4951,[],\"OutletBoundary\"]\nd:I[4951,[],\"ViewportBoundary\"]\nf:I[4951,[],\"MetadataBoundary\"]\n11:I[9792,[],\"\"]\n:HL[\"/_next/static/media/a34f9d1faa5f3315-s.p.woff2\",\"font\",{\"crossOrigin\":\"\",\"type\":\"font/woff2\"}]\n:HL[\"/_next/static/css/61baa97eb3e390b9.css\",\"style\"]\n:HL[\"/_next/static/css/946d38bb008e06a6.css\",\"style\"]\n2:T1997,"])</script><script>self.__next_f.push([1,"\n    // Comprehensive error handling for wallet/provider issues\n    (function() {\n      // Create a more robust mock ethereum provider\n      if (typeof window !== 'undefined') {\n        // Intercept and block all sender_getProviderState requests\n        const originalPostMessage = window.postMessage;\n        window.postMessage = function(...args) {\n          if (args[0] \u0026\u0026 typeof args[0] === 'object' \u0026\u0026 \n              (args[0].method === 'sender_getProviderState' || \n               (typeof args[0] === 'string' \u0026\u0026 args[0].includes('sender_getProviderState')))) {\n            console.log('Blocked sender_getProviderState postMessage');\n            return;\n          }\n          return originalPostMessage.apply(this, args);\n        };\n        \n        // Block any message event listeners that might process wallet messages\n        const originalAddEventListener = window.addEventListener;\n        window.addEventListener = function(type, listener, options) {\n          if (type === 'message') {\n            const wrappedListener = function(event) {\n              if (event \u0026\u0026 event.data \u0026\u0026 \n                  ((typeof event.data === 'object' \u0026\u0026 event.data.method === 'sender_getProviderState') ||\n                   (typeof event.data === 'string' \u0026\u0026 event.data.includes('sender_getProviderState')))) {\n                console.log('Blocked sender_getProviderState message event');\n                return;\n              }\n              return listener.apply(this, arguments);\n            };\n            return originalAddEventListener.call(this, type, wrappedListener, options);\n          }\n          return originalAddEventListener.apply(this, arguments);\n        };\n        \n        // Mock ethereum provider to prevent errors\n        window.ethereum = {\n          isMetaMask: false,\n          request: function(args) {\n            console.log('Mocked ethereum request:', args?.method);\n            return Promise.resolve([]);\n          },\n          on: function() {},\n          removeListener: function() {},\n          // Add additional methods that might be called\n          enable: function() { return Promise.resolve([]); },\n          sendAsync: function(_, callback) { \n            if (callback) callback(null, { result: [] }); \n          },\n          send: function(_, callback) { \n            if (callback) callback(null, { result: [] }); \n            return { result: [] }; \n          },\n          selectedAddress: null,\n          networkVersion: '1',\n          chainId: '0x1'\n        };\n        \n        // Intercept and prevent any sender_getProviderState calls via fetch\n        const originalFetch = window.fetch;\n        window.fetch = function(...args) {\n          const url = args[0]?.url || args[0];\n          const body = args[1]?.body;\n          \n          if (body \u0026\u0026 typeof body === 'string' \u0026\u0026 body.includes('sender_getProviderState')) {\n            console.log('Intercepted sender_getProviderState fetch call');\n            return Promise.resolve({\n              ok: true,\n              json: () =\u003e Promise.resolve({ result: { accounts: [] } }),\n              text: () =\u003e Promise.resolve('{\"result\":{\"accounts\":[]}}')\n            });\n          }\n          \n          return originalFetch.apply(this, args);\n        };\n        \n        // Prevent any direct calls to window.ethereum methods\n        Object.defineProperty(window, 'ethereum', {\n          get: function() {\n            return {\n              isMetaMask: false,\n              request: function(args) {\n                if (args \u0026\u0026 args.method === 'sender_getProviderState') {\n                  console.log('Blocked direct sender_getProviderState call');\n                  return Promise.resolve({ accounts: [] });\n                }\n                return Promise.resolve([]);\n              },\n              on: function() {},\n              removeListener: function() {},\n              enable: function() { return Promise.resolve([]); },\n              sendAsync: function(payload, callback) {\n                if (payload \u0026\u0026 payload.method === 'sender_getProviderState') {\n                  console.log('Blocked sendAsync sender_getProviderState call');\n                  if (callback) callback(null, { result: { accounts: [] } });\n                  return;\n                }\n                if (callback) callback(null, { result: [] });\n              },\n              send: function(payload, callback) {\n                if (payload \u0026\u0026 payload.method === 'sender_getProviderState') {\n                  console.log('Blocked send sender_getProviderState call');\n                  if (callback) callback(null, { result: { accounts: [] } });\n                  return { result: { accounts: [] } };\n                }\n                if (callback) callback(null, { result: [] });\n                return { result: [] };\n              },\n              selectedAddress: null,\n              networkVersion: '1',\n              chainId: '0x1'\n            };\n          },\n          set: function() {},\n          configurable: true\n        });\n      }\n      \n      // Prevent wallet connection errors\n      window.addEventListener('error', function(event) {\n        if (event.message \u0026\u0026 (\n          event.message.includes('wallet') || \n          event.message.includes('provider') || \n          event.message.includes('account') ||\n          event.message.includes('ethereum') ||\n          event.message.includes('No account exist') ||\n          event.message.includes('sender_getProviderState')\n        )) {\n          console.warn('Suppressed wallet connection error:', event.message);\n          event.preventDefault();\n          return true;\n        }\n      });\n\n      // Handle unhandled promise rejections related to wallets\n      window.addEventListener('unhandledrejection', function(event) {\n        if (event.reason \u0026\u0026 \n            (typeof event.reason === 'object' || typeof event.reason === 'string') \u0026\u0026\n            (String(event.reason).includes('wallet') || \n             String(event.reason).includes('provider') || \n             String(event.reason).includes('account') ||\n             String(event.reason).includes('ethereum') ||\n             String(event.reason).includes('No account exist') ||\n             String(event.reason).includes('sender_getProviderState'))) {\n          console.warn('Suppressed unhandled wallet promise rejection:', event.reason);\n          event.preventDefault();\n        }\n      });\n      \n      // Create a global variable to indicate wallet connections should be blocked\n      window.__BLOCK_WALLET_CONNECTIONS__ = true;\n    })();\n  "])</script><script>self.__next_f.push([1,"9:T57f,\n      // Register service worker for production, with better GitHub Pages compatibility\n      if ('serviceWorker' in navigator) {\n        window.addEventListener('load', function() {\n          setTimeout(function() {\n            try {\n              // Use the environment variable from the injected script\n              const basePath = window.__ENV__?.NEXT_PUBLIC_BASE_PATH || '';\n              const swPath = basePath + '/sw.js';\n              \n              // Only register if we detect the service worker exists\n              fetch(swPath, { method: 'HEAD' })\n                .then(response =\u003e {\n                  if (response.ok) {\n                    return navigator.serviceWorker.register(swPath);\n                  } else {\n                    console.log('ServiceWorker file not found at: ' + swPath);\n                    return Promise.reject('ServiceWorker not found');\n                  }\n                })\n                .then(registration =\u003e {\n                  console.log('ServiceWorker registration successful with scope: ', registration.scope);\n                })\n                .catch(err =\u003e {\n                  console.log('ServiceWorker registration skipped: ', err);\n                });\n            } catch (e) {\n              console.log('Error in service worker registration:', e);\n            }\n          }, 1000); // Delay service worker registration\n        });\n      }\n    "])</script><script>self.__next_f.push([1,"0:{\"P\":null,\"b\":\"6S2AIwdv0DnxS3MqcMZOZ\",\"p\":\"\",\"c\":[\"\",\"_not-found\",\"\"],\"i\":false,\"f\":[[[\"\",{\"children\":[\"/_not-found\",{\"children\":[\"__PAGE__\",{}]}]},\"$undefined\",\"$undefined\",true],[\"\",[\"$\",\"$1\",\"c\",{\"children\":[[[\"$\",\"link\",\"0\",{\"rel\":\"stylesheet\",\"href\":\"/_next/static/css/61baa97eb3e390b9.css\",\"precedence\":\"next\",\"crossOrigin\":\"$undefined\",\"nonce\":\"$undefined\"}],[\"$\",\"link\",\"1\",{\"rel\":\"stylesheet\",\"href\":\"/_next/static/css/946d38bb008e06a6.css\",\"precedence\":\"next\",\"crossOrigin\":\"$undefined\",\"nonce\":\"$undefined\"}]],[\"$\",\"html\",null,{\"lang\":\"en\",\"suppressHydrationWarning\":true,\"className\":\"scroll-smooth\",\"children\":[[\"$\",\"head\",null,{\"children\":[[\"$\",\"meta\",null,{\"charSet\":\"utf-8\"}],[\"$\",\"script\",null,{\"dangerouslySetInnerHTML\":{\"__html\":\"\\n          // Auto-detect the base path - only checking for staging environments\\n          (function() {\\n            const pathname = window.location.pathname;\\n            let basePath = '';\\n            \\n            // Check for staging environment pattern\\n            const stagingMatch = pathname.match(/\\\\/staging-(\\\\d+)/);\\n            if (stagingMatch) {\\n              basePath = stagingMatch[0]; // e.g., \\\"/staging-123\\\"\\n            }\\n            \\n            // Set the environment variables\\n            window.__ENV__ = {\\n              NEXT_PUBLIC_BASE_PATH: basePath\\n            };\\n            \\n            console.log('Auto-detected base path:', basePath);\\n          })();\\n        \"}}],[\"$\",\"link\",null,{\"rel\":\"icon\",\"href\":\"/favicon.ico\"}],[\"$\",\"link\",null,{\"rel\":\"preload\",\"href\":\"/fonts/inter-var.woff2\",\"as\":\"font\",\"type\":\"font/woff2\",\"crossOrigin\":\"anonymous\"}],[\"$\",\"link\",null,{\"rel\":\"preconnect\",\"href\":\"https://fonts.googleapis.com\"}],[\"$\",\"link\",null,{\"rel\":\"preconnect\",\"href\":\"https://fonts.gstatic.com\",\"crossOrigin\":\"anonymous\"}],[\"$\",\"link\",null,{\"rel\":\"dns-prefetch\",\"href\":\"https://fonts.googleapis.com\"}],[\"$\",\"link\",null,{\"rel\":\"dns-prefetch\",\"href\":\"https://fonts.gstatic.com\"}],[\"$\",\"link\",null,{\"rel\":\"preload\",\"href\":\"/uor-hero-enclosed.png\",\"as\":\"image\",\"type\":\"image/png\"}],[\"$\",\"link\",null,{\"rel\":\"preload\",\"href\":\"/uor-foundation-logo.svg\",\"as\":\"image\",\"type\":\"image/svg+xml\"}],[\"$\",\"link\",null,{\"rel\":\"preload\",\"href\":\"/uor-geometric-white.svg\",\"as\":\"image\",\"type\":\"image/svg+xml\"}],[\"$\",\"link\",null,{\"rel\":\"preload\",\"href\":\"/uor_god.svg\",\"as\":\"image\",\"type\":\"image/svg+xml\"}],[\"$\",\"script\",null,{\"dangerouslySetInnerHTML\":{\"__html\":\"\\n      // Font loading optimization\\n      if (\\\"fonts\\\" in document) {\\n        document.documentElement.classList.add('font-loading');\\n        \\n        Promise.all([\\n          document.fonts.load('1em \\\"Inter var\\\"')\\n        ]).then(() =\u003e {\\n          document.documentElement.classList.remove('font-loading');\\n          document.documentElement.classList.add('font-loaded');\\n        });\\n      }\\n    \"}}],[\"$\",\"script\",null,{\"defer\":true,\"dangerouslySetInnerHTML\":{\"__html\":\"$2\"}}]]}],[\"$\",\"body\",null,{\"className\":\"__className_d65c78 overflow-x-hidden pb-10\",\"children\":[[\"$\",\"$L3\",null,{\"defaultTheme\":\"system\",\"children\":[[\"$\",\"$L4\",null,{\"parallelRouterKey\":\"children\",\"error\":\"$undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$L5\",null,{}],\"templateStyles\":\"$undefined\",\"templateScripts\":\"$undefined\",\"notFound\":[[[\"$\",\"title\",null,{\"children\":\"404: This page could not be found.\"}],[\"$\",\"div\",null,{\"style\":{\"fontFamily\":\"system-ui,\\\"Segoe UI\\\",Roboto,Helvetica,Arial,sans-serif,\\\"Apple Color Emoji\\\",\\\"Segoe UI Emoji\\\"\",\"height\":\"100vh\",\"textAlign\":\"center\",\"display\":\"flex\",\"flexDirection\":\"column\",\"alignItems\":\"center\",\"justifyContent\":\"center\"},\"children\":[\"$\",\"div\",null,{\"children\":[[\"$\",\"style\",null,{\"dangerouslySetInnerHTML\":{\"__html\":\"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}\"}}],[\"$\",\"h1\",null,{\"className\":\"next-error-h1\",\"style\":{\"display\":\"inline-block\",\"margin\":\"0 20px 0 0\",\"padding\":\"0 23px 0 0\",\"fontSize\":24,\"fontWeight\":500,\"verticalAlign\":\"top\",\"lineHeight\":\"49px\"},\"children\":404}],[\"$\",\"div\",null,{\"style\":{\"display\":\"inline-block\"},\"children\":[\"$\",\"h2\",null,{\"style\":{\"fontSize\":14,\"fontWeight\":400,\"lineHeight\":\"49px\",\"margin\":0},\"children\":\"This page could not be found.\"}]}]]}]}]],[]],\"forbidden\":\"$undefined\",\"unauthorized\":\"$undefined\"}],[\"$\",\"$L6\",null,{}]]}],[\"$\",\"$L7\",null,{}],[\"$\",\"$L8\",null,{}],[\"$\",\"script\",null,{\"dangerouslySetInnerHTML\":{\"__html\":\"$9\"}}]]}]]}]]}],{\"children\":[\"/_not-found\",[\"$\",\"$1\",\"c\",{\"children\":[null,[\"$\",\"$L4\",null,{\"parallelRouterKey\":\"children\",\"error\":\"$undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$L5\",null,{}],\"templateStyles\":\"$undefined\",\"templateScripts\":\"$undefined\",\"notFound\":\"$undefined\",\"forbidden\":\"$undefined\",\"unauthorized\":\"$undefined\"}]]}],{\"children\":[\"__PAGE__\",[\"$\",\"$1\",\"c\",{\"children\":[[[\"$\",\"title\",null,{\"children\":\"404: This page could not be found.\"}],[\"$\",\"div\",null,{\"style\":\"$0:f:0:1:1:props:children:1:props:children:1:props:children:0:props:children:0:props:notFound:0:1:props:style\",\"children\":[\"$\",\"div\",null,{\"children\":[[\"$\",\"style\",null,{\"dangerouslySetInnerHTML\":{\"__html\":\"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}\"}}],[\"$\",\"h1\",null,{\"className\":\"next-error-h1\",\"style\":\"$0:f:0:1:1:props:children:1:props:children:1:props:children:0:props:children:0:props:notFound:0:1:props:children:props:children:1:props:style\",\"children\":404}],[\"$\",\"div\",null,{\"style\":\"$0:f:0:1:1:props:children:1:props:children:1:props:children:0:props:children:0:props:notFound:0:1:props:children:props:children:2:props:style\",\"children\":[\"$\",\"h2\",null,{\"style\":\"$0:f:0:1:1:props:children:1:props:children:1:props:children:0:props:children:0:props:notFound:0:1:props:children:props:children:2:props:children:props:style\",\"children\":\"This page could not be found.\"}]}]]}]}]],\"$undefined\",null,[\"$\",\"$La\",null,{\"children\":[\"$Lb\",\"$Lc\",null]}]]}],{},null,false]},null,false]},[null,[],[]],false],[\"$\",\"$1\",\"h\",{\"children\":[[\"$\",\"meta\",null,{\"name\":\"robots\",\"content\":\"noindex\"}],[\"$\",\"$1\",\"TKeEKPAGVfbGSxYiyAHhd\",{\"children\":[[\"$\",\"$Ld\",null,{\"children\":\"$Le\"}],[\"$\",\"meta\",null,{\"name\":\"next-size-adjust\",\"content\":\"\"}]]}],[\"$\",\"$Lf\",null,{\"children\":\"$L10\"}]]}],false]],\"m\":\"$undefined\",\"G\":[\"$11\",\"$undefined\"],\"s\":false,\"S\":true}\n"])</script><script>self.__next_f.push([1,"e:[[\"$\",\"meta\",\"0\",{\"charSet\":\"utf-8\"}],[\"$\",\"meta\",\"1\",{\"name\":\"viewport\",\"content\":\"width=device-width, initial-scale=1\"}]]\nb:null\n"])</script><script>self.__next_f.push([1,"c:null\n10:[[\"$\",\"title\",\"0\",{\"children\":\"UOR Foundation\"}],[\"$\",\"meta\",\"1\",{\"name\":\"description\",\"content\":\"UOR Foundation - Building the infrastructure for an internet where data is sovereign, semantic, and empowering.\"}],[\"$\",\"meta\",\"2\",{\"name\":\"generator\",\"content\":\"v0.dev\"}]]\n"])</script></body></html>
