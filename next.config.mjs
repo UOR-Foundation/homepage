@@ -23,9 +23,8 @@ const nextConfig = {
     unoptimized: true,
   },
   output: 'export',
-  // Only set basePath and assetPrefix for staging environments
-  basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
-  assetPrefix: process.env.NEXT_PUBLIC_BASE_PATH || '',
+  // Not setting basePath or assetPrefix at build time
+  // We'll detect paths at runtime via client-side detection
   // Add trailing slash for better GitHub Pages compatibility
   trailingSlash: true,
   experimental: {

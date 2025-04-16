@@ -36,15 +36,21 @@ export default function RootLayout({
         <meta charSet="utf-8" />
         {/* Inline environment loader script to avoid 404 errors */}
         <script dangerouslySetInnerHTML={{ __html: `
-          // Auto-detect the base path - only checking for staging environments
+          // Auto-detect the base path for previews
           (function() {
             const pathname = window.location.pathname;
             let basePath = '';
             
-            // Check for staging environment pattern
-            const stagingMatch = pathname.match(/\\/staging-(\\d+)/);
-            if (stagingMatch) {
-              basePath = stagingMatch[0]; // e.g., "/staging-123"
+            // Check for PR preview pattern in the URL path
+            // Example: /homepage/pr-preview/123/
+            if (pathname.includes('/pr-preview/')) {
+              const pathParts = pathname.split('/');
+              const previewIndex = pathParts.findIndex(part => part === 'pr-preview');
+              
+              if (previewIndex >= 0) {
+                // Combine all parts up to and including the PR number
+                basePath = pathParts.slice(0, previewIndex + 2).join('/');
+              }
             }
             
             // Set the environment variables
