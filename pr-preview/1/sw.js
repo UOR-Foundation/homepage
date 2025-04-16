@@ -1,23 +1,36 @@
 // Service Worker for UOR Foundation Website
 const CACHE_NAME = "uor-foundation-cache-v1"
 
-// Detect if we're in a staging environment for GitHub Pages
+// Auto-detect the base path for GitHub Pages PR previews
 let BASE_PATH = '';
 
-// Try to extract staging path from the service worker's location
+// Try to extract PR preview path from the service worker's location
 const swLocation = self.location.pathname;
-const stagingMatch = swLocation.match(/\/staging-(\d+)/);
-if (stagingMatch) {
-  BASE_PATH = stagingMatch[0]; // e.g., "/staging-123"
+
+// Check for PR preview pattern in the path
+// Example: /homepage/pr-preview/123/sw.js
+if (swLocation.includes('/pr-preview/')) {
+  const pathParts = swLocation.split('/');
+  const previewIndex = pathParts.findIndex(part => part === 'pr-preview');
+  
+  if (previewIndex >= 0) {
+    // Include repository name, pr-preview directory, and PR number
+    BASE_PATH = pathParts.slice(0, previewIndex + 2).join('/');
+  }
 }
 
 // Fallback to registration scope if available
 if (!BASE_PATH && self.registration) {
   const scope = self.registration.scope;
-  const scopeUrl = new URL(scope);
-  const scopeStagingMatch = scopeUrl.pathname.match(/\/staging-(\d+)/);
-  if (scopeStagingMatch) {
-    BASE_PATH = scopeStagingMatch[0]; // e.g., "/staging-123"
+  
+  if (scope.includes('/pr-preview/')) {
+    const scopeUrl = new URL(scope);
+    const pathParts = scopeUrl.pathname.split('/');
+    const previewIndex = pathParts.findIndex(part => part === 'pr-preview');
+    
+    if (previewIndex >= 0) {
+      BASE_PATH = pathParts.slice(0, previewIndex + 2).join('/');
+    }
   }
 }
 
