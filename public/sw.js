@@ -1,15 +1,22 @@
 // Service Worker for UOR Foundation Website
 const CACHE_NAME = "uor-foundation-cache-v1"
+
+// Get the base path from the service worker's scope
+// This handles GitHub Pages deployments with paths like /staging-123/
+const scope = self.registration ? self.registration.scope : '';
+const BASE_PATH = scope.endsWith('/') ? scope.slice(0, -1) : scope;
+
+// Use the base path for all assets
 const ASSETS_TO_CACHE = [
-  "/",
-  "/about",
-  "/product",
-  "/insights",
-  "/uor-hero-enclosed.png",
-  "/uor_god.svg",
-  "/uor-foundation-logo.svg",
-  "/uor-geometric-white.svg",
-  "/fonts/inter-var.woff2",
+  BASE_PATH + "/",
+  BASE_PATH + "/about",
+  BASE_PATH + "/product",
+  BASE_PATH + "/insights",
+  BASE_PATH + "/uor-hero-enclosed.png",
+  BASE_PATH + "/uor_god.svg",
+  BASE_PATH + "/uor-foundation-logo.svg",
+  BASE_PATH + "/uor-geometric-white.svg",
+  BASE_PATH + "/fonts/inter-var.woff2",
 ]
 
 // Install event - cache assets
