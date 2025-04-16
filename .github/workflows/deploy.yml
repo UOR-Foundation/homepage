@@ -1,8 +1,8 @@
-# Deploy to GitHub Pages via GitHub Actions
-# - Deploys to 'staging' environment on PRs to main
-# - Deploys to 'public' environment on push to main
+# GitHub Pages Deployment Workflow
+# - For main branch: deploy to GitHub Pages site
+# - For PRs: deploy to separate gh-pages branch with PR number prefix
 
-name: Deploy to GitHub Pages
+name: GitHub Pages Deployment
 
 on:
   pull_request:
@@ -10,17 +10,11 @@ on:
   push:
     branches: [main]
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
-  contents: read
+  contents: write  # Needed to push to gh-pages branches
+  pull-requests: write
   pages: write
   id-token: write
-  pull-requests: write
-
-# Allow only one concurrent deployment
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
 
 jobs:
   build:
@@ -29,45 +23,141 @@ jobs:
       is_pr: ${{ github.event_name == 'pull_request' }}
       pr_number: ${{ github.event.pull_request.number }}
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+      
       - name: Install pnpm
         uses: pnpm/action-setup@v3
         with:
           version: 8
+      
       - name: Install dependencies
         run: pnpm install
+      
       - name: Lint
         run: pnpm run lint --no-cache || true
+      
       - name: TypeCheck
         run: pnpm run typecheck || true
-
-      - name: Build static site
+      
+      - name: Build static site 
         run: pnpm run build
-        env:
-          NEXT_PUBLIC_BASE_PATH: ${{ github.event_name == 'pull_request' && format('/staging-{0}', github.event.pull_request.number) || '' }}
+      
+      # Store the build output for use in deployment jobs
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-build
+          path: out/
+          retention-days: 1
+
+  # Deploy PR previews to a separate branch with a prefix
+  deploy-preview:
+    name: Deploy PR Preview
+    needs: build
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Download built site
+        uses: actions/download-artifact@v4
+        with:
+          name: site-build
+          path: site
+      
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+      
+      - name: Deploy to PR-specific branch
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          BRANCH_NAME="gh-pages-pr-${PR_NUMBER}"
+          SITE_DIR="site"
+          
+          # Clone just the gh-pages branch
+          git clone --single-branch --branch gh-pages https://x-access-token:${{ github.token }}@github.com/${{ github.repository }} gh-pages || true
+          
+          if [ ! -d "gh-pages" ]; then
+            # If the branch doesn't exist yet, create it
+            mkdir gh-pages
+            cd gh-pages
+            git init
+            git checkout -b gh-pages
+            git remote add origin https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}
+            cd ..
+          fi
+          
+          # Create or clean PR-specific directory
+          cd gh-pages
+          mkdir -p pr-preview/$PR_NUMBER
+          rm -rf pr-preview/$PR_NUMBER/*
+          
+          # Copy the built site to the PR directory
+          cp -r ../$SITE_DIR/* pr-preview/$PR_NUMBER/
+          
+          # Create a simple index.html for the PR preview directory
+          mkdir -p pr-preview
+          if [ ! -f pr-preview/index.html ]; then
+            echo "<!DOCTYPE html><html><head><title>PR Previews</title></head><body><h1>PR Previews</h1><ul id='pr-list'></ul><script>fetch('https://api.github.com/repos/${{ github.repository }}/pulls?state=open').then(r=>r.json()).then(prs=>{const list=document.getElementById('pr-list');prs.forEach(pr=>{const item=document.createElement('li');const link=document.createElement('a');link.href='$PR_NUMBER/';link.textContent='PR #'+pr.number+': '+pr.title;item.appendChild(link);list.appendChild(item);})});</script></body></html>" > pr-preview/index.html
+          fi
+          
+          # Commit and push
+          git add .
+          git commit -m "Deploy PR #$PR_NUMBER preview" || echo "No changes to commit"
+          git push -f origin gh-pages
+          
+          echo "::notice::PR preview deployed to https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/pr-preview/$PR_NUMBER/"
+          echo "PREVIEW_URL=https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/pr-preview/$PR_NUMBER/" >> $GITHUB_ENV
+      
+      # Post a comment on the PR with the preview URL
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const previewUrl = process.env.PREVIEW_URL;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `📝 PR Preview deployed to [Preview Link](${previewUrl})`
+            });
+  
+  # Deploy production site using GitHub Pages
+  deploy-production:
+    name: Deploy Production
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    # Use the Pages environment for deploying to production
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+      - name: Download built site
+        uses: actions/download-artifact@v4
+        with:
+          name: site-build
+          path: out
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: out
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: ${{ needs.build.outputs.is_pr == 'true' && format('staging-{0}', needs.build.outputs.pr_number) || 'github-pages' }}
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Setup environment info
-        run: |
-          echo "Is PR? ${{ needs.build.outputs.is_pr }}"
-          echo "PR Number: ${{ needs.build.outputs.pr_number }}"
-          echo "Environment: ${{ needs.build.outputs.is_pr == 'true' && format('staging-{0}', needs.build.outputs.pr_number) || 'github-pages' }}"
-          echo "Base Path: ${{ github.event_name == 'pull_request' && format('/staging-{0}', github.event.pull_request.number) || '' }}"
+          path: 'out'
+      
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
