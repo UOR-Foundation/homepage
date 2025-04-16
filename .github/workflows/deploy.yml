@@ -45,8 +45,6 @@ jobs:
       
       - name: Build
         run: pnpm run build
-        env:
-          # No base path needed as we detect it client-side
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
