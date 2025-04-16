@@ -1,38 +1,9 @@
 // Service Worker for UOR Foundation Website
 const CACHE_NAME = "uor-foundation-cache-v1"
 
-// Auto-detect the base path for GitHub Pages PR previews
-let BASE_PATH = '';
-
-// Try to extract PR preview path from the service worker's location
-const swLocation = self.location.pathname;
-
-// Check for PR preview pattern in the path
-// Example: /homepage/pr-preview/123/sw.js
-if (swLocation.includes('/pr-preview/')) {
-  const pathParts = swLocation.split('/');
-  const previewIndex = pathParts.findIndex(part => part === 'pr-preview');
-  
-  if (previewIndex >= 0) {
-    // Include repository name, pr-preview directory, and PR number
-    BASE_PATH = pathParts.slice(0, previewIndex + 2).join('/');
-  }
-}
-
-// Fallback to registration scope if available
-if (!BASE_PATH && self.registration) {
-  const scope = self.registration.scope;
-  
-  if (scope.includes('/pr-preview/')) {
-    const scopeUrl = new URL(scope);
-    const pathParts = scopeUrl.pathname.split('/');
-    const previewIndex = pathParts.findIndex(part => part === 'pr-preview');
-    
-    if (previewIndex >= 0) {
-      BASE_PATH = pathParts.slice(0, previewIndex + 2).join('/');
-    }
-  }
-}
+// For GitHub Pages deployment, we use an empty base path
+// since the site is deployed at the root level
+const BASE_PATH = '';
 
 // For debugging
 console.log('Service Worker base path detected as:', BASE_PATH);
