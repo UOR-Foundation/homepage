@@ -14,23 +14,14 @@ const getBrowserEnv = (): EnvType => {
     }
     
     // 2. Auto-detect the base path from the current URL pathname
-    // This is reliable for GitHub Pages deployments
+    // For GitHub Pages, we only need to detect if we're in a staging environment
     const pathname = window.location.pathname;
-    
-    // Extract the repo name and possibly staging prefix from the URL
     let basePath = '';
     
-    // The URL path will be like: /repo-name or /repo-name/staging-123
-    const pathParts = pathname.split('/').filter(Boolean);
-    
-    if (pathParts.length > 0) {
-      // First part is always the repo name
-      basePath = '/' + pathParts[0];
-      
-      // If there's a staging prefix, add it
-      if (pathParts.length > 1 && pathParts[1].startsWith('staging-')) {
-        basePath += '/' + pathParts[1];
-      }
+    // Check if we're in a staging environment
+    const stagingMatch = pathname.match(/\/staging-(\d+)/);
+    if (stagingMatch) {
+      basePath = stagingMatch[0]; // e.g., "/staging-123"
     }
     
     return { NEXT_PUBLIC_BASE_PATH: basePath };
