@@ -1,27 +1,19 @@
 import type React from "react"
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
-import "./globals.css"
+import "@/app/globals.css"
+import { Manrope } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
-import FloatingStatusBar from "@/components/floating-status-bar"
-import PerformanceMonitor from "@/components/performance-monitor"
-import "./font-face.css"
-import { UORConceptOverlay } from "@/components/uor-concept-overlay"
-import { ENV } from "@/lib/env"
+import Script from "next/script"
 
-// Optimize font loading with display swap
-const inter = Inter({
+const manrope = Manrope({
   subsets: ["latin"],
+  variable: "--font-manrope",
   display: "swap",
-  preload: true,
 })
 
-export const metadata: Metadata = {
-  title: "UOR Foundation",
+export const metadata = {
+  title: "The UOR Foundation",
   description:
-    "UOR Foundation - Building the infrastructure for an internet where data is sovereign, semantic, and empowering.",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=5",
-  themeColor: "#000000",
+    "$1T+ in AI application value depends on data that lacks unified semantic context and verifiable trust. We solve this with programmable semantic addressing and deterministic vector embeddings.",
     generator: 'v0.dev'
 }
 
@@ -31,264 +23,115 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning className="scroll-smooth">
+    <html lang="en" suppressHydrationWarning className={manrope.variable}>
       <head>
-        <meta charSet="utf-8" />
-        {/* Inline environment loader script to avoid 404 errors */}
-        <script dangerouslySetInnerHTML={{ __html: `
-          // Initialize environment variables
-          (function() {
-            // Since this site is deployed to GitHub Pages at the root level,
-            // we don't need any base path
-            window.__ENV__ = {
-              NEXT_PUBLIC_BASE_PATH: ''
-            };
-          })();
-        `}} />
-        <link rel="icon" href={`${ENV.NEXT_PUBLIC_BASE_PATH}/favicon.ico`} />
-        <link rel="preload" href={`${ENV.NEXT_PUBLIC_BASE_PATH}/fonts/inter-var.woff2`} as="font" type="font/woff2" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
-        <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
-
-        {/* Preload critical assets */}
-        <link rel="preload" href={`${ENV.NEXT_PUBLIC_BASE_PATH}/uor-hero-enclosed.png`} as="image" type="image/png" />
-        <link rel="preload" href={`${ENV.NEXT_PUBLIC_BASE_PATH}/uor-foundation-logo.svg`} as="image" type="image/svg+xml" />
-        <link rel="preload" href={`${ENV.NEXT_PUBLIC_BASE_PATH}/uor-geometric-white.svg`} as="image" type="image/svg+xml" />
-        <link rel="preload" href={`${ENV.NEXT_PUBLIC_BASE_PATH}/uor_god.svg`} as="image" type="image/svg+xml" />
-
-        {/* Font loading optimization script */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-      // Font loading optimization
-      if ("fonts" in document) {
-        document.documentElement.classList.add('font-loading');
-        
-        Promise.all([
-          document.fonts.load('1em "Inter var"')
-        ]).then(() => {
-          document.documentElement.classList.remove('font-loading');
-          document.documentElement.classList.add('font-loaded');
-        });
-      }
-    `,
-          }}
-        />
-
-        {/* Wallet error handling script */}
-        <script
-          defer
-          dangerouslySetInnerHTML={{
-            __html: `
-    // Comprehensive error handling for wallet/provider issues
-    (function() {
-      // Create a more robust mock ethereum provider
-      if (typeof window !== 'undefined') {
-        // Intercept and block all sender_getProviderState requests
-        const originalPostMessage = window.postMessage;
-        window.postMessage = function(...args) {
-          if (args[0] && typeof args[0] === 'object' && 
-              (args[0].method === 'sender_getProviderState' || 
-               (typeof args[0] === 'string' && args[0].includes('sender_getProviderState')))) {
-            console.log('Blocked sender_getProviderState postMessage');
-            return;
-          }
-          return originalPostMessage.apply(this, args);
-        };
-        
-        // Block any message event listeners that might process wallet messages
-        const originalAddEventListener = window.addEventListener;
-        window.addEventListener = function(type, listener, options) {
-          if (type === 'message') {
-            const wrappedListener = function(event) {
-              if (event && event.data && 
-                  ((typeof event.data === 'object' && event.data.method === 'sender_getProviderState') ||
-                   (typeof event.data === 'string' && event.data.includes('sender_getProviderState')))) {
-                console.log('Blocked sender_getProviderState message event');
-                return;
-              }
-              return listener.apply(this, arguments);
-            };
-            return originalAddEventListener.call(this, type, wrappedListener, options);
-          }
-          return originalAddEventListener.apply(this, arguments);
-        };
-        
-        // Mock ethereum provider to prevent errors
-        window.ethereum = {
-          isMetaMask: false,
-          request: function(args) {
-            console.log('Mocked ethereum request:', args?.method);
-            return Promise.resolve([]);
-          },
-          on: function() {},
-          removeListener: function() {},
-          // Add additional methods that might be called
-          enable: function() { return Promise.resolve([]); },
-          sendAsync: function(_, callback) { 
-            if (callback) callback(null, { result: [] }); 
-          },
-          send: function(_, callback) { 
-            if (callback) callback(null, { result: [] }); 
-            return { result: [] }; 
-          },
-          selectedAddress: null,
-          networkVersion: '1',
-          chainId: '0x1'
-        };
-        
-        // Intercept and prevent any sender_getProviderState calls via fetch
-        const originalFetch = window.fetch;
-        window.fetch = function(...args) {
-          const url = args[0]?.url || args[0];
-          const body = args[1]?.body;
-          
-          if (body && typeof body === 'string' && body.includes('sender_getProviderState')) {
-            console.log('Intercepted sender_getProviderState fetch call');
-            return Promise.resolve({
-              ok: true,
-              json: () => Promise.resolve({ result: { accounts: [] } }),
-              text: () => Promise.resolve('{"result":{"accounts":[]}}')
-            });
-          }
-          
-          return originalFetch.apply(this, args);
-        };
-        
-        // Prevent any direct calls to window.ethereum methods
-        Object.defineProperty(window, 'ethereum', {
-          get: function() {
-            return {
-              isMetaMask: false,
-              request: function(args) {
-                if (args && args.method === 'sender_getProviderState') {
-                  console.log('Blocked direct sender_getProviderState call');
-                  return Promise.resolve({ accounts: [] });
-                }
-                return Promise.resolve([]);
-              },
-              on: function() {},
-              removeListener: function() {},
-              enable: function() { return Promise.resolve([]); },
-              sendAsync: function(payload, callback) {
-                if (payload && payload.method === 'sender_getProviderState') {
-                  console.log('Blocked sendAsync sender_getProviderState call');
-                  if (callback) callback(null, { result: { accounts: [] } });
-                  return;
-                }
-                if (callback) callback(null, { result: [] });
-              },
-              send: function(payload, callback) {
-                if (payload && payload.method === 'sender_getProviderState') {
-                  console.log('Blocked send sender_getProviderState call');
-                  if (callback) callback(null, { result: { accounts: [] } });
-                  return { result: { accounts: [] } };
-                }
-                if (callback) callback(null, { result: [] });
-                return { result: [] };
-              },
-              selectedAddress: null,
-              networkVersion: '1',
-              chainId: '0x1'
-            };
-          },
-          set: function() {},
-          configurable: true
-        });
-      }
-      
-      // Prevent wallet connection errors
-      window.addEventListener('error', function(event) {
-        if (event.message && (
-          event.message.includes('wallet') || 
-          event.message.includes('provider') || 
-          event.message.includes('account') ||
-          event.message.includes('ethereum') ||
-          event.message.includes('No account exist') ||
-          event.message.includes('sender_getProviderState')
-        )) {
-          console.warn('Suppressed wallet connection error:', event.message);
-          event.preventDefault();
-          return true;
-        }
-      });
-
-      // Handle unhandled promise rejections related to wallets
-      window.addEventListener('unhandledrejection', function(event) {
-        if (event.reason && 
-            (typeof event.reason === 'object' || typeof event.reason === 'string') &&
-            (String(event.reason).includes('wallet') || 
-             String(event.reason).includes('provider') || 
-             String(event.reason).includes('account') ||
-             String(event.reason).includes('ethereum') ||
-             String(event.reason).includes('No account exist') ||
-             String(event.reason).includes('sender_getProviderState'))) {
-          console.warn('Suppressed unhandled wallet promise rejection:', event.reason);
-          event.preventDefault();
-        }
-      });
-      
-      // Create a global variable to indicate wallet connections should be blocked
-      window.__BLOCK_WALLET_CONNECTIONS__ = true;
-    })();
-  `,
-          }}
-        />
-
-        {/* Service worker registration - moved to end of body for better performance */}
+        <meta name="wallet-provider" content="none" />
+        <meta name="web3" content="false" />
+        <meta name="crypto" content="false" />
+        <meta name="ethereum" content="false" />
+        <meta name="blockchain" content="false" />
+        <meta name="sender" content="false" />
+        <meta name="solana" content="false" />
+        <meta name="phantom" content="false" />
+        <meta name="wallet" content="false" />
       </head>
-      <body className={`${inter.className} overflow-x-hidden pb-10`}>
-        <ThemeProvider defaultTheme="system">
+      <body className={manrope.className}>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           {children}
-          <UORConceptOverlay />
         </ThemeProvider>
-        <FloatingStatusBar />
-        <PerformanceMonitor />
-
-        {/* Move service worker registration to end of body - with better error handling */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-      // Register service worker for production, with better GitHub Pages compatibility
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
-          setTimeout(function() {
-            try {
-              // Use the environment variable from the injected script
-              const basePath = window.__ENV__?.NEXT_PUBLIC_BASE_PATH || '';
-              const swPath = basePath + '/sw.js';
-              
-              // Only register if we detect the service worker exists
-              fetch(swPath, { method: 'HEAD' })
-                .then(response => {
-                  if (response.ok) {
-                    return navigator.serviceWorker.register(swPath);
-                  } else {
-                    console.log('ServiceWorker file not found at: ' + swPath);
-                    return Promise.reject('ServiceWorker not found');
-                  }
-                })
-                .then(registration => {
-                  console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                })
-                .catch(err => {
-                  console.log('ServiceWorker registration skipped: ', err);
-                });
-            } catch (e) {
-              console.log('Error in service worker registration:', e);
-            }
-          }, 1000); // Delay service worker registration
-        });
+        <Script id="disable-wallet-provider" strategy="beforeInteractive">
+          {`
+    // More comprehensive wallet provider blocking
+    window.addEventListener('load', function() {
+      // Block ethereum provider
+      if (window.ethereum) {
+        console.log('Ethereum provider detected, disabling...');
+        const originalRequest = window.ethereum.request;
+        window.ethereum.request = function(args) {
+          if (args && args.method) {
+            console.log('Blocked ethereum request:', args.method);
+            return Promise.reject(new Error('Ethereum methods disabled on this site'));
+          }
+          return originalRequest.apply(window.ethereum, arguments);
+        };
       }
-    `,
-          }}
-        />
+      
+      // Specifically handle Sender wallet provider
+      Object.defineProperty(window, 'sender', {
+        configurable: true,
+        get: function() {
+          console.log('Blocked access to sender wallet provider');
+          return {
+            // Return mock implementation that rejects all requests
+            getProviderState: function() {
+              return Promise.reject(new Error('Sender wallet disabled on this site'));
+            },
+            request: function() {
+              return Promise.reject(new Error('Sender wallet disabled on this site'));
+            },
+            on: function() { return; },
+            removeAllListeners: function() { return; },
+            isConnected: function() { return false; },
+            connect: function() { 
+              return Promise.reject(new Error('Sender wallet disabled on this site'));
+            }
+          };
+        },
+        set: function() {
+          console.log('Blocked setting sender wallet provider');
+        }
+      });
+      
+      // Create a proxy to intercept any attempts to access wallet providers
+      const walletProviders = ['ethereum', 'solana', 'phantom', 'solflare', 'xdefi'];
+      walletProviders.forEach(provider => {
+        if (provider !== 'sender') { // We already handled sender specifically above
+          Object.defineProperty(window, provider, {
+            get: function() {
+              console.log(\`Blocked access to \${provider} provider\`);
+              return null;
+            },
+            set: function() {
+              console.log(\`Blocked setting \${provider} provider\`);
+            },
+            configurable: false
+          });
+        }
+      });
+      
+      // Block any wallet connection attempts via postMessage
+      const originalPostMessage = window.postMessage;
+      window.postMessage = function(message, targetOrigin, transfer) {
+        if (message && typeof message === 'object' && 
+            (message.type && (message.type.includes('wallet') || message.type.includes('sender')) || 
+             message.method && (message.method.includes('wallet') || message.method.includes('sender')))) {
+          console.log('Blocked wallet-related postMessage:', message.type || message.method);
+          return;
+        }
+        return originalPostMessage.call(window, message, targetOrigin, transfer);
+      };
+      
+      // Block specific sender wallet messages
+      const originalAddEventListener = window.addEventListener;
+      window.addEventListener = function(type, listener, options) {
+        if (type === 'message') {
+          const wrappedListener = function(event) {
+            if (event && event.data && typeof event.data === 'object' && 
+                (event.data.type && event.data.type.includes('sender') || 
+                 event.data.method && event.data.method.includes('sender'))) {
+              console.log('Blocked sender wallet message event');
+              return;
+            }
+            return listener(event);
+          };
+          return originalAddEventListener.call(window, type, wrappedListener, options);
+        }
+        return originalAddEventListener.call(window, type, listener, options);
+      };
+    });
+  `}
+        </Script>
       </body>
     </html>
   )
 }
-
-
-import './globals.css'

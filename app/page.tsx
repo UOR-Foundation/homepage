@@ -2,940 +2,897 @@
 
 import type React from "react"
 
+import { useEffect, useState, useCallback, type FormEvent, Suspense, lazy, useRef } from "react"
 import Link from "next/link"
+import { Github, Linkedin, ArrowRight, ArrowLeft, Menu, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import ParticleBackground from "@/components/particle-background"
-import GradientBackground from "@/components/gradient-background"
-import EnhancedHeader from "@/components/enhanced-header"
-import ScrollReveal from "@/components/scroll-reveal"
-import ParallaxSection from "@/components/parallax-section"
-import Card3D from "@/components/card-3d"
-import { useEffect, useState } from "react"
-import LazyLoad from "@/components/lazy-load"
-import PrefetchLinks from "@/components/prefetch-links"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import Image from "next/image"
-import GalaxyAnimation from "@/components/galaxy-animation"
-import { ChevronUp, ChevronDown, X } from "lucide-react"
+import { ContactDialog } from "@/components/contact-dialog"
+import { OptimizedDataWave } from "@/components/optimized-data-wave"
+import { IntroOverlay } from "@/components/intro-overlay"
+import { InsightsRow } from "@/components/insights-row"
+import { MobileMenu } from "@/components/mobile-menu"
+import { useMobileMenu } from "@/hooks/use-mobile-menu"
+import { useDeviceDetection } from "@/hooks/use-device-detection"
+import { LazyLoadWrapper } from "@/components/lazy-load-wrapper"
+import { WaitlistWidget } from "@/components/waitlist-widget"
+import { PrivacyPolicyDialog } from "@/components/privacy-policy-dialog"
+import { submitContactForm, type ContactFormData } from "@/actions/contact-form"
+import { PrimeOSWaitlistWidget } from "@/components/primeos-waitlist-widget"
+
+// Lazy load non-critical components
+const InsightsSection = lazy(() =>
+  import("@/components/insights-section").then((mod) => ({ default: mod.InsightsSection })),
+)
 
 export default function Home() {
-  // State for tracking expanded cards
-  const [expandedCards, setExpandedCards] = useState<{ [key: string]: boolean }>({
-    why: false,
-    how: false,
-    what: false,
+  const [activeSection, setActiveSection] = useState<string | null>(null)
+  const [contactForm, setContactForm] = useState({
+    name: "",
+    email: "",
+    organization: "",
+    message: "",
   })
+  const [getUpdates, setGetUpdates] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSubmitted, setIsSubmitted] = useState(false)
+  const { isOpen, toggleMenu } = useMobileMenu()
+  const { isMobile } = useDeviceDetection()
+  const heroSectionRef = useRef<HTMLElement>(null)
 
-  // State for popup overlay
-  const [popupContent, setPopupContent] = useState<{
-    title: string
-    content: React.ReactNode | null
-    isOpen: boolean
-  }>({
-    title: "",
-    content: null,
-    isOpen: false,
-  })
+  // Handle contact form submission
+  const handleContactSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
 
-  // This effect runs on mount to ensure we start at the top
-  useEffect(() => {
-    // Add a check for reduced motion preference to disable heavy animations
-    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
-    const prefersReducedMotion = mediaQuery.matches
+    try {
+      const formData: ContactFormData = {
+        ...contactForm,
+        getUpdates,
+      }
 
-    // Apply performance optimizations based on device capability
-    const isLowEndDevice = window.navigator.hardwareConcurrency <= 4
+      console.log("Submitting form data:", formData)
+      const result = await submitContactForm(formData)
+      console.log("Form submission result:", result)
 
-    // Apply optimizations for low-end devices or reduced motion preference
-    if (isLowEndDevice || prefersReducedMotion) {
-      // Find and disable heavy animations
-      const heavyAnimations = document.querySelectorAll(".heartbeat-glow, .data-glow-animation")
-      heavyAnimations.forEach((el) => {
-        el.classList.add("reduce-motion-mobile")
-      })
+      if (result.success) {
+        setIsSubmitted(true)
+      } else {
+        // Create an error message element
+        const errorContainer = document.createElement("div")
+        errorContainer.className = "mt-4 p-3 bg-red-50 text-red-600 rounded-md text-sm"
+        errorContainer.textContent = result.message || "Failed to send message. Please try again."
 
-      // Simplify background effects
-      const backgrounds = document.querySelectorAll(".gpu-accelerated")
-      backgrounds.forEach((el) => {
-        el.classList.add("reduce-motion-mobile")
-      })
+        // Find the form and append the error message
+        const form = e.target as HTMLFormElement
+        // Remove any existing error messages
+        const existingError = form.querySelector(".bg-red-50")
+        if (existingError) {
+          form.removeChild(existingError)
+        }
+        form.appendChild(errorContainer)
+
+        // Remove the error message after 5 seconds
+        setTimeout(() => {
+          if (form.contains(errorContainer)) {
+            form.removeChild(errorContainer)
+          }
+        }, 5000)
+      }
+    } catch (error) {
+      console.error("Error submitting form:", error)
+      alert("An unexpected error occurred. Please try again.")
+    } finally {
+      setIsSubmitting(false)
     }
+  }
 
-    // Force scroll to top with multiple methods for cross-browser compatibility
-    window.scrollTo(0, 0)
-    document.documentElement.scrollTop = 0
-    document.body.scrollTop = 0
-
-    // Clear any hash in the URL that might cause jumping
-    if (window.location.hash) {
-      // Use history API to clear the hash without causing a jump
-      window.history.replaceState(null, document.title, window.location.pathname + window.location.search)
-    }
-
-    // Add a small delay to ensure browser has time to process
-    const timer = setTimeout(() => {
-      window.scrollTo(0, 0)
-      document.documentElement.scrollTop = 0
-      document.body.scrollTop = 0
-    }, 100)
-
-    return () => clearTimeout(timer)
+  // Handle contact form input changes
+  const handleContactChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setContactForm((prev) => ({ ...prev, [name]: value }))
   }, [])
 
-  // Enhanced wallet error prevention
+  // Reset contact form
+  const resetContactForm = useCallback(() => {
+    setContactForm({
+      name: "",
+      email: "",
+      organization: "",
+      message: "",
+    })
+    setGetUpdates(true)
+    setIsSubmitted(false)
+  }, [])
+
+  // Add smooth scrolling behavior and track active section
   useEffect(() => {
-    // Block all wallet-related message events
-    const blockWalletMessages = (event: any) => {
-      if (
-        event.data &&
-        ((typeof event.data === "object" &&
-          (event.data.method === "sender_getProviderState" || event.data.type === "sender-wallet-providerResult")) ||
-          (typeof event.data === "string" &&
-            (event.data.includes("sender_getProviderState") || event.data.includes("sender-wallet-providerResult"))))
-      ) {
-        console.log(
-          "Blocked wallet message event:",
-          typeof event.data === "object" ? event.data.method || event.data.type : "string message",
-        )
-        event.stopImmediatePropagation()
-        event.preventDefault()
-        return false
+    // Function to handle smooth scrolling for anchor links
+    const handleAnchorClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      const anchor = target.closest("a")
+
+      if (!anchor) return
+
+      // Check if this is an anchor link
+      const href = anchor.getAttribute("href")
+      if (!href || !href.startsWith("#")) return
+
+      e.preventDefault()
+
+      const targetId = href.substring(1)
+      const targetElement = document.getElementById(targetId)
+
+      if (!targetElement) return
+
+      // Get the sticky header height to offset the scroll position
+      const header = document.querySelector("header")
+      const headerHeight = header ? header.offsetHeight : 0
+
+      // Calculate the target position with offset
+      const targetPosition = targetElement.getBoundingClientRect().top + window.scrollY - headerHeight
+
+      // Smooth scroll to the target
+      window.scrollTo({
+        top: targetPosition,
+        behavior: "smooth",
+      })
+
+      // Update active section
+      setActiveSection(targetId)
+    }
+
+    // Function to check which section is currently in view
+    const handleScroll = () => {
+      const sections = ["learn", "build", "connect"]
+      const scrollPosition = window.scrollY + window.innerHeight / 3
+
+      for (const section of sections) {
+        const element = document.getElementById(section)
+        if (!element) continue
+
+        const offsetTop = element.offsetTop
+        const offsetHeight = element.offsetHeight
+
+        if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
+          setActiveSection(section)
+          break
+        } else if (scrollPosition < document.getElementById("learn")?.offsetTop || 0) {
+          setActiveSection(null) // At the top, before any sections
+        }
       }
     }
 
-    // Add capture phase listener to intercept before other listeners
-    window.addEventListener("message", blockWalletMessages, true)
+    // Throttle scroll event for better performance
+    let scrollTimeout: number
+    const throttledScroll = () => {
+      if (!scrollTimeout) {
+        scrollTimeout = window.setTimeout(() => {
+          handleScroll()
+          scrollTimeout = 0
+        }, 100)
+      }
+    }
 
-    // Clean up
+    // Add event listeners
+    document.addEventListener("click", handleAnchorClick)
+    window.addEventListener("scroll", throttledScroll)
+
+    // Initial check for active section
+    handleScroll()
+
+    // Clean up event listeners
     return () => {
-      window.removeEventListener("message", blockWalletMessages, true)
+      document.removeEventListener("click", handleAnchorClick)
+      window.removeEventListener("scroll", throttledScroll)
+      window.clearTimeout(scrollTimeout)
     }
   }, [])
 
-  // Function to toggle card expansion
-  const toggleCardExpansion = (card: string) => {
-    setExpandedCards((prev) => ({
-      ...prev,
-      [card]: !prev[card],
-    }))
-  }
-
-  // Function to open popup
-  const openPopup = (title: string, content: React.ReactNode) => {
-    setPopupContent({
-      title,
-      content,
-      isOpen: true,
-    })
-    // Prevent body scrolling when popup is open
-    document.body.style.overflow = "hidden"
-  }
-
-  // Function to close popup
-  const closePopup = () => {
-    setPopupContent((prev) => ({
-      ...prev,
-      isOpen: false,
-    }))
-    // Restore body scrolling
-    document.body.style.overflow = "auto"
-  }
-
   return (
-    <div className="min-h-screen flex flex-col bg-black text-white">
-      {/* Enhanced Header */}
-      <EnhancedHeader />
+    <div className="flex min-h-screen flex-col">
+      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all duration-200">
+        <div className="container flex h-16 md:h-20 items-center justify-between py-4 md:py-6">
+          <div className="flex items-center gap-6 md:gap-10">
+            <Link href="/" className="flex items-center space-x-2">
+              <Image
+                src="/images/uor-logo.png"
+                alt="UOR Foundation Logo"
+                width={36}
+                height={36}
+                style={{ height: "36px", width: "auto" }}
+                priority
+              />
+            </Link>
+            <button
+              className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+              aria-label="Open mobile menu"
+              onClick={toggleMenu}
+              data-mobile-trigger
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          </div>
+          <nav className="hidden absolute left-1/2 transform -translate-x-1/2 md:flex">
+            <div className="flex items-center space-x-1">
+              <a
+                href="#learn"
+                className={`relative px-4 py-2 text-base font-bold transition-all duration-200 hover:text-[#5E5CFF] ${
+                  activeSection === "learn" ? "text-[#5E5CFF]" : "text-foreground/80"
+                }`}
+              >
+                Learn
+                {activeSection === "learn" && (
+                  <span className="absolute -bottom-[22px] left-1/2 h-[3px] w-12 -translate-x-1/2 rounded-full bg-[#5E5CFF]"></span>
+                )}
+              </a>
+              <a
+                href="#build"
+                className={`relative px-4 py-2 text-base font-bold transition-all duration-200 hover:text-[#5E5CFF] ${
+                  activeSection === "build" ? "text-[#5E5CFF]" : "text-foreground/80"
+                }`}
+              >
+                Build
+                {activeSection === "build" && (
+                  <span className="absolute -bottom-[22px] left-1/2 h-[3px] w-12 -translate-x-1/2 rounded-full bg-[#5E5CFF]"></span>
+                )}
+              </a>
+              <a
+                href="#connect"
+                className={`relative px-4 py-2 text-base font-bold transition-all duration-200 hover:text-[#5E5CFF] ${
+                  activeSection === "connect" ? "text-[#5E5CFF]" : "text-foreground/80"
+                }`}
+              >
+                Connect
+                {activeSection === "connect" && (
+                  <span className="absolute -bottom-[22px] left-1/2 h-[3px] w-12 -translate-x-1/2 rounded-full bg-[#5E5CFF]"></span>
+                )}
+              </a>
+            </div>
+          </nav>
+          <div className="flex items-center gap-2">
+            <div className="hidden md:flex">
+              <Link
+                href="https://www.linkedin.com/company/uor-foundation"
+                target="_blank"
+                rel="noreferrer"
+                className="px-1"
+              >
+                <Linkedin className="h-5 w-5 text-foreground/60 transition-colors hover:text-foreground/80" />
+                <span className="sr-only">LinkedIn</span>
+              </Link>
+              <Link href="https://github.com/UOR-Foundation" target="_blank" rel="noreferrer" className="px-1">
+                <Github className="h-5 w-5 text-foreground/60 transition-colors hover:text-foreground/80" />
+                <span className="sr-only">GitHub</span>
+              </Link>
+              <Link href="https://discord.gg/ZwuZaNyuve" target="_blank" rel="noreferrer" className="px-1">
+                <Image
+                  src="/images/discord2.png"
+                  alt="Discord"
+                  width={20}
+                  height={20}
+                  className="opacity-60 hover:opacity-80 transition-opacity duration-200"
+                />
+                <span className="sr-only">Discord</span>
+              </Link>
+            </div>
+            <ContactDialog>
+              <Button
+                data-contact-trigger="true"
+                className="rounded-md bg-slate-900 text-white hover:bg-slate-800"
+                size={isMobile ? "sm" : "default"}
+              >
+                {isMobile ? "Contact" : "Get in touch"}
+              </Button>
+            </ContactDialog>
+          </div>
+        </div>
+      </header>
 
-      {/* Rest of the component remains unchanged */}
-      {/* 1. Hero Section with highlighted "Data" */}
-      <section className="relative text-white pt-24 pb-12 px-4 sm:px-6 overflow-hidden min-h-[80vh] flex items-center">
-        {/* Background effects */}
-        <div className="absolute inset-0 bg-[rgb(16,0,43)]"></div>
-        <GradientBackground blur={80} speed={0.001} className="gpu-accelerated" />
-        <ParticleBackground className="gpu-accelerated" />
+      <MobileMenu isOpen={isOpen} onClose={toggleMenu} activeSection={activeSection} />
 
-        <div className="max-w-6xl mx-auto relative z-10 w-full">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div>
-              <div className="mb-6">
-                <h1 className="hero-text-smaller high-contrast-text mb-4 tracking-tight">
-                  TRANSFORM THE WAY YOU
-                  <div className="relative inline-block mt-1">
-                    <span className="data-glow-text">DATA</span>
-                    {/* Center-aligned glow effect behind DATA */}
-                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full h-full data-glow-animation heartbeat-glow"></div>
-                  </div>
-                </h1>
-
-                {/* Mobile-only galaxy animation MOVED BETWEEN title and paragraph */}
-                <div className="flex md:hidden justify-center my-6">
-                  <div
-                    className="relative hero-image-container gpu-accelerated"
-                    style={{ maxWidth: "180px", maxHeight: "180px" }}
-                  >
-                    <div className="hero-image-glow heartbeat-glow"></div>
-                    <div className="relative z-10">
-                      <GalaxyAnimation className="w-full h-[180px]" />
-                    </div>
-                  </div>
-                </div>
-
-                <p className="subtitle-text mb-6 text-white/90 high-contrast-text text-base leading-relaxed">
-                  UOR Foundation is building the internet's new foundation — where data is sovereign, knowledge is open,
-                  and intelligence flows freely to empower people and unlock human potential.
+      <main className="flex-1">
+        <section ref={heroSectionRef} className="relative" id="hero-section">
+          <div className="absolute inset-0 -z-10 overflow-hidden">
+            <OptimizedDataWave />
+          </div>
+          <div className="container relative z-20 py-12 pb-24 md:py-24 md:pb-28 lg:py-32">
+            <div className="mx-auto flex max-w-[980px] flex-col items-center gap-4 text-center">
+              <h1 className="text-2xl sm:text-3xl font-bold leading-tight tracking-tighter text-black md:text-4xl lg:text-5xl lg:leading-[1.1]">
+                AI's trillion-dollar potential is limited by <span className="sm:hidden">data</span>
+                <span className="hidden sm:inline">
+                  <br />
+                  data
+                </span>{" "}
+                that is fragmented, lacks context, and <span className="sm:hidden">can't</span>
+                <span className="hidden sm:inline">
+                  <br />
+                  can't
+                </span>{" "}
+                be trusted
+              </h1>
+              <div className="space-y-3 max-w-[750px] px-4 sm:px-0">
+                <p className="text-base sm:text-lg text-black/80 md:text-xl">
+                  We're solving this with the <strong>Universal Object Reference (UOR)</strong>, a shared language
+                  framework for all kinds of of data. It helps AI consistently make sense of{" "}
+                  <br className="hidden md:inline" />
+                  and trust the information it processes.
+                </p>
+                <p className="text-base sm:text-lg text-black/80 md:text-xl">
+                  Delivered through <strong>PrimeOS</strong>, powering the next generation of{" "}
+                  <br className="hidden md:inline" />
+                  AI applications that are context-aware and verifiable.
                 </p>
               </div>
-
-              <div className="flex flex-wrap gap-3">
-                <Button
-                  className="rounded-full px-5 py-3 text-base font-medium bg-white text-black hover:bg-white/90 revolut-button w-full sm:w-auto"
-                  asChild
-                >
-                  <Link href="/product">Learn More</Link>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="rounded-full px-5 py-3 text-base font-medium border-white text-white bg-transparent hover:bg-white/10 revolut-button w-full sm:w-auto mt-2 sm:mt-0"
-                  asChild
-                >
-                  <Link href="https://github.com/UOR-Foundation" target="_blank" rel="noopener noreferrer">
-                    Explore GitHub
-                  </Link>
-                </Button>
-              </div>
-            </div>
-
-            <div className="hidden md:flex justify-center">
-              <div className="relative hero-image-container gpu-accelerated">
-                {/* Single glow effect behind the hero image */}
-                <div className="hero-image-glow heartbeat-glow"></div>
-                <div className="relative z-10">
-                  {/* Use next/dynamic to load GalaxyAnimation only when needed */}
-                  <GalaxyAnimation className="w-full max-w-[250px] h-[250px]" />
-                </div>
+              <div className="mt-0 md:mt-8 w-full max-w-[600px] px-4 sm:px-0">
+                <WaitlistWidget />
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* 2. Improved Why, How, What Section */}
-      <section className="space-section px-4 sm:px-6 bg-black">
-        <div className="max-w-7xl mx-auto">
-          <ScrollReveal width="100%">
-            <h2 className="text-3xl md:text-5xl font-bold text-center mb-6">
-              Our <span className="gradient-text">Mission</span>
-            </h2>
-            <p className="text-white text-center max-w-2xl mx-auto mb-16 text-lg">
-              We're building a better internet where data has meaning, people have control, and systems work together
-              seamlessly.
+        <section className="container pt-2 sm:pt-6 md:pt-12 pb-6 md:py-12 lg:py-16">
+          <div className="mx-auto max-w-[800px] text-center px-4 sm:px-0">
+            <div className="inline-block">
+              <Image
+                src="/images/uor-logo.png"
+                alt="UOR Foundation Logo"
+                width={64}
+                height={64}
+                style={{ height: "64px", width: "auto" }}
+                priority
+              />
+            </div>
+            <p className="mt-4 md:mt-8 text-base md:text-lg text-muted-foreground">
+              The <strong>UOR Foundation</strong> is a{" "}
+              <Link
+                href="https://www.sos.state.co.us/biz/BusinessEntityDetail.do?quitButtonDestination=BusinessEntityCriteriaExt&fileId=20251193974&masterFileId="
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-foreground"
+              >
+                non-profit corporation
+              </Link>{" "}
+              based in Denver, Colorado, focused on advancing open research and building a global community of leaders
+              in data science, AI and technology.
             </p>
-          </ScrollReveal>
-
-          <div className="grid md:grid-cols-3 gap-6 sm:gap-8">
-            {/* Why */}
-            <ScrollReveal delay={0.1}>
-              <Card3D
-                className={`bg-black-200 p-6 rounded-2xl border border-white/10 ${expandedCards.why ? "h-auto" : "h-auto md:h-[360px]"} flex flex-col mission-card transition-all duration-300`}
-                intensity={5}
-              >
-                <div className="bg-gradient-to-br from-revolut-blue-500 to-revolut-blue-700 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
-                  <span className="text-white text-xl font-bold">Why</span>
-                </div>
-                <h3 className="text-2xl font-bold mb-4 text-white">Unlock Your Data Sovereignty</h3>
-
-                {/* Expandable content */}
-                <div className="flex-grow flex flex-col">
-                  <p className="text-white/90 mb-2">
-                    The internet was built for content, not context. Without a shared semantic reference system, data
-                    becomes fragmented, hard to trust, and difficult to interoperate.
-                  </p>
-
-                  {expandedCards.why && (
-                    <div className="transition-all duration-300 animate-fadeIn mb-2">
-                      <p className="text-white/90">
-                        This limits innovation, fuels misinformation, and centralizes control. We believe that by making
-                        data semantic, traceable, and interoperable, we can unlock human potential—restoring data
-                        sovereignty, enabling free access to information, and building a more open, trustworthy digital
-                        future.
-                      </p>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => toggleCardExpansion("why")}
-                    className="flex items-center text-sm text-white/80 hover:text-white transition-colors mt-auto group bg-black-300/50 py-1 px-2 rounded-md self-start"
-                  >
-                    {expandedCards.why ? (
-                      <>
-                        Read less{" "}
-                        <ChevronUp className="ml-1 h-4 w-4 group-hover:translate-y-[-2px] transition-transform" />
-                      </>
-                    ) : (
-                      <>
-                        Read more{" "}
-                        <ChevronDown className="ml-1 h-4 w-4 group-hover:translate-y-[2px] transition-transform" />
-                      </>
-                    )}
-                  </button>
-                </div>
-              </Card3D>
-            </ScrollReveal>
-
-            {/* How */}
-            <ScrollReveal delay={0.2}>
-              <Card3D
-                className={`bg-black-200 p-6 rounded-2xl border border-white/10 ${expandedCards.how ? "h-auto" : "h-auto md:h-[360px]"} flex flex-col mission-card transition-all duration-300`}
-                intensity={5}
-              >
-                <div className="bg-gradient-to-br from-revolut-purple-500 to-revolut-purple-700 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
-                  <span className="text-white text-xl font-bold">How</span>
-                </div>
-                <h3 className="text-2xl font-bold mb-4 text-white">Build Semantic Infrastructure</h3>
-
-                {/* Expandable content */}
-                <div className="flex-grow flex flex-col">
-                  <p className="text-white/90 mb-2">
-                    The UOR Foundation develops open standards and tools that embed semantic meaning directly into data.
-                    Our approach enables federated, verifiable computation across disconnected systems.
-                  </p>
-
-                  {expandedCards.how && (
-                    <div className="transition-all duration-300 animate-fadeIn mb-2">
-                      <p className="text-white/90">
-                        Our approach enables federated, verifiable computation across disconnected systems—without
-                        relying on brittle ontologies or opaque AI. By preserving context throughout the data lifecycle,
-                        we prevent drift, decay, and loss of integrity.
-                      </p>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => toggleCardExpansion("how")}
-                    className="flex items-center text-sm text-white/80 hover:text-white transition-colors mt-auto group bg-black-300/50 py-1 px-2 rounded-md self-start"
-                  >
-                    {expandedCards.how ? (
-                      <>
-                        Read less{" "}
-                        <ChevronUp className="ml-1 h-4 w-4 group-hover:translate-y-[-2px] transition-transform" />
-                      </>
-                    ) : (
-                      <>
-                        Read more{" "}
-                        <ChevronDown className="ml-1 h-4 w-4 group-hover:translate-y-[2px] transition-transform" />
-                      </>
-                    )}
-                  </button>
-                </div>
-              </Card3D>
-            </ScrollReveal>
-
-            {/* What */}
-            <ScrollReveal delay={0.3}>
-              <Card3D
-                className={`bg-black-200 p-6 rounded-2xl border border-white/10 ${expandedCards.what ? "h-auto" : "h-auto md:h-[360px]"} flex flex-col mission-card transition-all duration-300`}
-                intensity={5}
-              >
-                <div className="bg-gradient-to-br from-revolut-pink-500 to-revolut-pink-700 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
-                  <span className="text-white text-xl font-bold">What</span>
-                </div>
-                <h3 className="text-2xl font-bold mb-4 text-white">Deploy Context-Aware Applications</h3>
-
-                {/* Expandable content */}
-                <div className="flex-grow flex flex-col">
-                  <p className="text-white/90 mb-2">
-                    Our core innovation is UOR (Universal Object Reference)—an open-source framework that creates a
-                    shared coordinate system for digital artifacts.
-                  </p>
-
-                  {expandedCards.what && (
-                    <div className="transition-all duration-300 animate-fadeIn mb-2">
-                      <p className="text-white/90">
-                        We're building the semantic layer of the internet through tools like PrimeOS, a trust-minimized
-                        runtime for context-aware AI, and the PrimeApp SDK. From healthcare to education, UOR powers a
-                        new generation of systems that are explainable, composable, and trustworthy.
-                      </p>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => toggleCardExpansion("what")}
-                    className="flex items-center text-sm text-white/80 hover:text-white transition-colors mt-auto group bg-black-300/50 py-1 px-2 rounded-md self-start"
-                  >
-                    {expandedCards.what ? (
-                      <>
-                        Read less{" "}
-                        <ChevronUp className="ml-1 h-4 w-4 group-hover:translate-y-[-2px] transition-transform" />
-                      </>
-                    ) : (
-                      <>
-                        Read more{" "}
-                        <ChevronDown className="ml-1 h-4 w-4 group-hover:translate-y-[2px] transition-transform" />
-                      </>
-                    )}
-                  </button>
-                </div>
-              </Card3D>
-            </ScrollReveal>
-          </div>
-
-          {/* Vision Section with full-width white background - UPDATED FOR MOBILE */}
-          <div className="mt-20 w-full">
-            <div className="vision-band py-16 w-screen relative left-[50%] right-[50%] mx-[-50vw] bg-white">
-              <ScrollReveal width="100%">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6">
-                  <h3 className="text-2xl font-bold mb-4 text-center text-black">Our Vision</h3>
-
-                  {/* New enclosed geometric image with centered pulsating glow - REDUCED SIZE FOR MOBILE */}
-                  <div className="flex justify-center mb-6 relative">
-                    {/* Centered pulsating glow effect - with loving heartbeat animation */}
-                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-gradient-to-br from-revolut-blue-500 via-revolut-purple-500 to-revolut-pink-500 heartbeat-glow z-0 opacity-50 blur-xl"></div>
-
-                    {/* Image on top of the pulsating effect - REDUCED SIZE FOR MOBILE */}
-                    <div className="relative z-10">
-                      <Image
-                        src="/trans.png"
-                        alt="UOR Geometric Vision Diagram"
-                        width={160}
-                        height={104}
-                        className="opacity-90 w-[120px] md:w-[160px]"
-                        loading="eager"
-                        priority
-                        quality={90}
-                        sizes="(max-width: 768px) 120px, 160px"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="max-w-3xl mx-auto">
-                    <p className="text-lg leading-relaxed text-center text-black">
-                      We believe in a future where you own your data, AI speaks truth, not guesses, and systems work
-                      together without barriers. A future where software is open, transparent, and built to empower you.
-                      Join us to restore trust, unlock human potential, and build a digital world that puts people
-                      first.
-                    </p>
-                  </div>
-                </div>
-              </ScrollReveal>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Our Product Section */}
-      <section className="space-section px-4 sm:px-6 bg-black">
-        <div className="max-w-7xl mx-auto">
-          <ScrollReveal width="100%">
-            <h2 className="text-3xl md:text-5xl font-bold text-center mb-8">
-              Our <span className="gradient-text">Product</span>
-            </h2>
-            <p className="text-white/80 text-center max-w-3xl mx-auto mb-12">
-              A complete stack for building, shipping, and running deterministic applications with semantic
-              traceability, all built on the UOR Framework foundation
+            <p className="mt-4 text-base md:text-lg text-muted-foreground">
+              We're dedicated to creating open-source tools and standards that make data more reliable, transparent, and
+              easy to work with. This work lays the foundation for
+              <br />a trusted and interconnected <strong>internet of AI applications</strong>.
             </p>
-          </ScrollReveal>
+            <p className="mt-6 text-base md:text-lg text-[#5E5CFF] font-medium text-center">
+              Google indexed the web's content. We index its meaning.
+            </p>
+          </div>
+        </section>
 
-          {/* Build → Ship → Run Workflow Graphic */}
-          <div className="bg-black-200 rounded-xl p-8 border border-white/10 mb-16">
-            {/* UOR Framework Foundation - MOVED TO TOP */}
-            <div className="mb-8">
-              <div className="relative w-full mx-auto">
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full h-full rounded-xl bg-gradient-to-r from-revolut-blue-500/30 via-revolut-purple-500/30 to-revolut-pink-500/30 blur-xl"></div>
-                <div className="relative bg-black-300 rounded-xl border border-white/20 p-6">
-                  <div className="flex flex-col items-center">
-                    {/* Logo at the top */}
-                    <div className="flex items-center mb-4">
-                      <div className="bg-gradient-to-br from-revolut-blue-500 to-revolut-purple-500 w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                        0
-                      </div>
-                      <h3 className="text-xl font-bold text-white ml-3">UOR Framework</h3>
-                    </div>
-
-                    {/* Description text - centered */}
-                    <p className="text-white/80 text-sm mb-5 text-center max-w-3xl">
-                      The UOR framework is a next-generation substrate protocol for the internet, designed for
-                      transporting, computing and storing data using first-principles and axiomatic structures.
-                    </p>
-
-                    {/* Three components - centered */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full">
-                      {/* Canon */}
-                      <div className="bg-revolut-blue-500/30 px-3 py-2 rounded text-xs">
-                        <div className="text-center mb-1 text-white font-bold text-xl">A</div>
-                        <span className="font-bold text-base text-revolut-blue-400 block text-center">Canon</span>
-                        <span className="text-xs text-white/80 block text-center">(Knowledge Graph)</span>
-                        <p className="mt-1 text-white/80 text-center">
-                          Semantic reference system for transporting data.
-                        </p>
-                        <div className="text-center">
-                          <button
-                            onClick={() =>
-                              openPopup(
-                                "Canon (Knowledge Graph)",
-                                <div className="space-y-4">
-                                  <p>
-                                    The Canon is the semantic reference system of the UOR framework — a structured,
-                                    symbolic layer that enables the transportation of meaning across systems. It
-                                    contains first-principles definitions, stable Handles, and well-formed concepts that
-                                    serve as the substrate for all reasoning. As the system's source of semantic truth,
-                                    the Canon ensures that every piece of data is uniquely identifiable and logically
-                                    grounded.
-                                  </p>
-                                  <p>
-                                    <strong>AI/ML analogy:</strong> Like an ontology powering symbolic reasoning or the
-                                    curated document base in RAG — but internally structured, logically coherent, and
-                                    meaning-native.
-                                  </p>
-                                  <p>
-                                    <strong>How it works:</strong> When a query or computation is initiated, the Canon
-                                    provides the symbolic seeds (Handles) — precise references that drive resolution and
-                                    computation downstream.
-                                  </p>
-                                  <p>
-                                    <strong>Key advantages:</strong>
-                                  </p>
-                                  <ul className="list-disc pl-5 space-y-1">
-                                    <li>Enables symbolic data transport and meaning-level interoperability</li>
-                                    <li>Provides non-hallucinated, traceable inputs</li>
-                                    <li>Encodes logic-ready concepts for downstream reasoning</li>
-                                  </ul>
-                                </div>,
-                              )
-                            }
-                            className="text-revolut-blue-400 hover:text-revolut-blue-300 text-xs mt-1"
-                          >
-                            Learn more
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Cortex */}
-                      <div className="bg-revolut-purple-500/30 px-3 py-2 rounded text-xs">
-                        <div className="text-center mb-1 text-white font-bold text-xl">B</div>
-                        <span className="font-bold text-base text-revolut-purple-400 block text-center">Cortex</span>
-                        <span className="text-xs text-white/80 block text-center">(Neural Network)</span>
-                        <p className="mt-1 text-white/80 text-center">Meaning-first processing and data computing.</p>
-                        <div className="text-center">
-                          <button
-                            onClick={() =>
-                              openPopup(
-                                "Cortex (Neural Network)",
-                                <div className="space-y-4">
-                                  <p>
-                                    The Cortex is the meaning-first computation engine of the UOR framework — a
-                                    symbolic, multi-layer resolver that transforms Canonical inputs into Codex
-                                    realizations. Operating across the Primal Domain Stack, it encodes structure, embeds
-                                    logic, and resolves meaning in a deterministic and inspectable circuit.
-                                  </p>
-                                  <p>
-                                    <strong>AI/ML analogy:</strong> Like the inference phase of a neural model — but
-                                    fully symbolic, reversible, and geometry-aware.
-                                  </p>
-                                  <p>
-                                    <strong>How it works:</strong> The Cortex transforms Handles through three phases:
-                                    encoding (structure assignment), embedding (logic + geometry), and decoding
-                                    (realization). Each phase preserves interpretability and causal traceability.
-                                  </p>
-                                  <p>
-                                    <strong>Key advantages:</strong>
-                                  </p>
-                                  <ul className="list-disc pl-5 space-y-1">
-                                    <li>Transparent, deterministic computation — no black boxes</li>
-                                    <li>Supports symbolic, logical, and geometric reasoning</li>
-                                    <li>Produces consistent and debuggable outputs</li>
-                                  </ul>
-                                </div>,
-                              )
-                            }
-                            className="text-revolut-purple-400 hover:text-revolut-purple-300 text-xs mt-1"
-                          >
-                            Learn more
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Codex */}
-                      <div className="bg-revolut-pink-500/30 px-3 py-2 rounded text-xs">
-                        <div className="text-center mb-1 text-white font-bold text-xl">C</div>
-                        <span className="font-bold text-base text-revolut-pink-400 block text-center">Codex</span>
-                        <span className="text-xs text-white/80 block text-center">(Memory)</span>
-                        <p className="mt-1 text-white/80 text-center">
-                          Deterministic structured data storage and decoding.
-                        </p>
-                        <div className="text-center">
-                          <button
-                            onClick={() =>
-                              openPopup(
-                                "Codex (Memory)",
-                                <div className="space-y-4">
-                                  <p>
-                                    The Codex is UOR's deterministic memory layer — a structured container system where
-                                    outputs of reasoning are stored, resolved, and decoded. Each Codex entry is a
-                                    Container: a finalized object with embedded meaning, metadata, and provenance that
-                                    reflects how it was derived.
-                                  </p>
-                                  <p>
-                                    <strong>AI/ML analogy:</strong> Like a model output with an audit log and embedded
-                                    semantics — but natively structured and internally verifiable.
-                                  </p>
-                                  <p>
-                                    <strong>How it works:</strong> As data flows through the Cortex, its final
-                                    realization is encoded in a Container and stored in the Codex. This includes not
-                                    just the result, but the full transformation path from the Canon.
-                                  </p>
-                                  <p>
-                                    <strong>Key advantages:</strong>
-                                  </p>
-                                  <ul className="list-disc pl-5 space-y-1">
-                                    <li>Stores meaning-rich, interpretable data structures</li>
-                                    <li>Every output includes logical context and transformation history</li>
-                                    <li>Ideal for auditability, reuse, and stable memory across systems</li>
-                                  </ul>
-                                </div>,
-                              )
-                            }
-                            className="text-revolut-pink-400 hover:text-revolut-pink-300 text-xs mt-1"
-                          >
-                            Learn more
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+        <section id="learn" className="container py-10 md:py-12 lg:py-16 scroll-mt-20">
+          <div className="grid gap-8 md:gap-10 md:grid-cols-2">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold tracking-tighter lg:text-4xl">Learn</h2>
+              <p className="mt-4 text-muted-foreground">
+                Discover how we're creating a trusted foundation for the future of AI. Learn about our mission, the
+                Universal Object Reference (UOR), and PrimeOS. These tools help AI understand, align with human goals,
+                and make decisions you and your team can trust.
+              </p>
+              <span className="mt-4 inline-block text-[#5E5CFF] font-medium">
+                Browse resources <ArrowRight className="inline-block h-3.5 w-3.5 ml-1" />
+              </span>
             </div>
-
-            {/* Connecting Arrow from UOR Framework to Products - Desktop Only */}
-            <div className="hidden md:flex justify-center items-center my-4">
-              <div className="h-12 w-0.5 bg-gradient-to-b from-revolut-blue-500/50 to-revolut-purple-500/50"></div>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-8">
-              {/* Build - Prime SDK */}
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-b from-revolut-blue-500/10 to-transparent rounded-xl"></div>
-                <div className="relative bg-black-300 rounded-xl border border-white/10 p-6 h-full flex flex-col">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center">
-                      <div className="bg-gradient-to-br from-revolut-blue-500 to-revolut-blue-700 w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                        1
-                      </div>
-                      <div className="ml-3">
-                        <h3 className="text-xl font-bold text-white">Prime SDK</h3>
-                        <span className="text-base text-white/80">(Build)</span>
-                      </div>
-                    </div>
-                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-revolut-blue-500 to-revolut-purple-500 flex items-center justify-center">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="h-6 w-6 text-white"
-                      >
-                        <polyline points="16 18 22 12 16 6"></polyline>
-                        <polyline points="8 6 2 12 8 18"></polyline>
-                      </svg>
-                    </div>
-                  </div>
-                  <p className="text-white/80 text-sm mt-4 mb-4">
-                    Developers use Prime SDK to create UOR-native applications with deterministic behavior and full
-                    source traceability.
+            <div className="rounded-xl bg-muted/50 p-4 md:p-6">
+              <div className="grid gap-4">
+                <IntroOverlay title="Introduction to UOR Foundation">
+                  <h3 className="font-medium">
+                    Introduction to <strong>UOR Foundation</strong>
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Discover our mission to create a new foundation for the Internet of AI, where systems understand,
+                    connect, and reason from trusted context.
                   </p>
-                  <Link href="/prime-sdk" className="text-revolut-blue-400 hover:text-revolut-blue-300 text-sm mt-auto">
-                    Learn more about Prime SDK →
-                  </Link>
-                </div>
-              </div>
-
-              {/* Ship - Prime AppStore */}
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-b from-revolut-purple-500/10 to-transparent rounded-xl"></div>
-                <div className="relative bg-black-300 rounded-xl border border-white/10 p-6 h-full flex flex-col">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center">
-                      <div className="bg-gradient-to-br from-revolut-purple-500 to-revolut-purple-700 w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                        2
-                      </div>
-                      <div className="ml-3">
-                        <h3 className="text-xl font-bold text-white">Prime AppStore</h3>
-                        <span className="text-base text-white/80">(Ship)</span>
-                      </div>
-                    </div>
-                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-revolut-purple-500 to-revolut-pink-500 flex items-center justify-center">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="h-6 w-6 text-white"
-                      >
-                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                      </svg>
-                    </div>
-                  </div>
-                  <p className="text-white/80 text-sm mt-4 mb-4">
-                    Applications are packaged and distributed through Prime AppStore, maintaining their semantic
-                    integrity and source transparency.
+                  <span className="mt-2 inline-flex items-center text-xs font-medium text-[#5E5CFF]">Learn more →</span>
+                </IntroOverlay>
+                <IntroOverlay title="Overview of UOR Framework">
+                  <h3 className="font-medium">
+                    Overview of <strong>UOR Framework</strong>
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Learn how UOR gives AI a consistent way to describe data, helping systems communicate effectively
+                    and work with information they can trust.
                   </p>
-                  <Link
-                    href="/prime-appstore"
-                    className="text-revolut-purple-400 hover:text-revolut-purple-300 text-sm mt-auto"
-                  >
-                    Learn more about Prime AppStore →
-                  </Link>
-                </div>
-              </div>
-
-              {/* Run - PrimeOS */}
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-b from-revolut-pink-500/10 to-transparent rounded-xl"></div>
-                <div className="relative bg-black-300 rounded-xl border border-white/10 p-6 h-full flex flex-col">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center">
-                      <div className="bg-gradient-to-br from-revolut-pink-500 to-revolut-pink-700 w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                        3
-                      </div>
-                      <div className="ml-3">
-                        <h3 className="text-xl font-bold text-white">PrimeOS</h3>
-                        <span className="text-base text-white/80">(Run)</span>
-                      </div>
-                    </div>
-                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-revolut-pink-500 to-revolut-blue-500 flex items-center justify-center">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="h-6 w-6 text-white"
-                      >
-                        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
-                        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
-                        <line x1="6" y1="6" x2="6.01" y2="6"></line>
-                        <line x1="6" y1="18" x2="6.01" y2="18"></line>
-                      </svg>
-                    </div>
-                  </div>
-                  <p className="text-white/80 text-sm mt-4 mb-4">
-                    PrimeOS executes applications with guaranteed deterministic behavior, maintaining semantic context
-                    throughout the computation lifecycle.
+                  <span className="mt-2 inline-flex items-center text-xs font-medium text-[#5E5CFF]">Learn more →</span>
+                </IntroOverlay>
+                <IntroOverlay title="Learn about PrimeOS">
+                  <h3 className="font-medium">
+                    Learn about <strong>PrimeOS</strong>
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Explore how PrimeOS creates a trusted environment for AI applications, ensuring they remain aligned
+                    with their purpose and deliver consistent results.
                   </p>
-                  <Link href="/prime-os" className="text-revolut-pink-400 hover:text-revolut-pink-300 text-sm mt-auto">
-                    Learn more about PrimeOS →
-                  </Link>
-                </div>
+                  <span className="mt-2 inline-flex items-center text-xs font-medium text-[#5E5CFF]">Learn more →</span>
+                </IntroOverlay>
               </div>
-            </div>
-
-            {/* Connecting Arrows Between Cards - Desktop Only */}
-            <div className="hidden md:flex justify-between items-center mt-4 px-16">
-              <div className="w-1/3 h-0.5 bg-gradient-to-r from-revolut-blue-500/50 to-revolut-purple-500/50"></div>
-              <div className="w-1/3 h-0.5 bg-gradient-to-r from-revolut-purple-500/50 to-revolut-pink-500/50"></div>
             </div>
           </div>
 
-          {/* Add a link to the Product Overview page */}
-          <div className="text-center mt-8">
-            <Button variant="outline" className="rounded-full border-white/20 text-white hover:bg-white/10" asChild>
-              <Link href="/product">Explore our full product ecosystem</Link>
-            </Button>
+          <div className="relative mt-12 md:mt-16 -mx-[calc(50vw-50%)] py-12 md:py-16 bg-gradient-to-r from-[#5E5CFF]/5 via-[#7A78FF]/10 to-[#5E5CFF]/5 border-y border-[#5E5CFF]/10">
+            <div className="container">
+              <LazyLoadWrapper height="400px">
+                <Suspense
+                  fallback={<div className="h-[400px] flex items-center justify-center">Loading insights...</div>}
+                >
+                  <InsightsRow />
+                </Suspense>
+              </LazyLoadWrapper>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* 3. Industry Applications Section */}
-      <section className="space-section px-4 sm:px-6 bg-black-100 relative overflow-hidden cv-auto">
-        <div className="absolute inset-0 bg-gradient-to-br from-revolut-blue-500/5 via-revolut-purple-500/5 to-revolut-pink-500/5"></div>
+        <section id="build" className="container py-10 md:py-12 lg:py-16 scroll-mt-20">
+          <div className="grid gap-8 md:gap-10 md:grid-cols-2">
+            <div className="order-2 md:order-1 rounded-xl bg-muted/50 p-4 md:p-6">
+              <div className="grid gap-4">
+                <div className="rounded-lg bg-background p-4 shadow-sm">
+                  <h3 className="font-medium">
+                    Foundation <strong>Opportunities</strong>
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Explore ways to contribute to the <strong>UOR Foundation</strong>'s mission and projects.
+                  </p>
+                  <span className="mt-2 inline-flex items-center text-xs font-medium text-[#5E5CFF]">
+                    Coming soon →
+                  </span>
+                </div>
+                <div className="rounded-lg bg-background p-4 shadow-sm">
+                  <h3 className="font-medium">
+                    UOR Framework <strong>Docs</strong>
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Access comprehensive documentation for the <strong>Universal Object Reference framework</strong>.
+                  </p>
+                  <span className="mt-2 inline-flex items-center text-xs font-medium text-[#5E5CFF]">
+                    Coming soon →
+                  </span>
+                </div>
+                <div className="rounded-lg bg-background p-4 shadow-sm">
+                  <h3 className="font-medium">
+                    PrimeOS <strong>SDK</strong>
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Get ready for the upcoming <strong>PrimeOS</strong> Software Development Kit for developers.
+                  </p>
+                  <span className="mt-2 inline-flex items-center text-xs font-medium text-[#5E5CFF]">
+                    Coming soon →
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="order-1 md:order-2">
+              <h2 className="text-2xl md:text-3xl font-bold tracking-tighter lg:text-4xl">Build</h2>
+              <p className="mt-4 text-muted-foreground">
+                Join our community of builders creating the next generation of open research tools and platforms.
+                Contribute to existing projects or start your own with our support.
+              </p>
+              <span className="mt-4 inline-block text-[#5E5CFF] font-medium">
+                <ArrowLeft className="inline-block h-3.5 w-3.5 mr-1" /> Build with us
+              </span>
+            </div>
+          </div>
 
-        <div className="max-w-7xl mx-auto relative z-10">
-          <ScrollReveal width="100%">
+          {/* Why build on PrimeOS section */}
+          <div className="mt-16 md:mt-24">
             <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-5xl font-bold mb-4">
-                How UOR <span className="gradient-text">Transforms Industries</span>
-              </h2>
-              <p className="text-white max-w-2xl mx-auto">
-                UOR's semantic architecture provides powerful solutions to complex problems across diverse industries.
+              <h2 className="text-2xl md:text-3xl font-bold tracking-tighter lg:text-4xl">Why build on PrimeOS?</h2>
+              <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
+                PrimeOS provides a unique foundation for AI applications that require context-awareness, verifiable
+                trust, and semantic interoperability.
               </p>
             </div>
-          </ScrollReveal>
 
-          <ScrollReveal delay={0.3}>
-            <LazyLoad
-              component={() => import("@/components/industry-applications")}
-              fallback={<div className="h-96 w-full bg-black-200 animate-pulse rounded-xl"></div>}
-            />
-          </ScrollReveal>
-        </div>
-      </section>
-
-      {/* 5. Call to Action Section */}
-      <section className="space-section px-4 sm:px-6 relative text-white overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-bg-animated opacity-90"></div>
-        <div className="absolute inset-0 bg-black/50"></div>
-        <GradientBackground blur={100} />
-
-        <ParallaxSection direction="up" speed={0.2} className="max-w-4xl mx-auto text-center relative z-10">
-          <ScrollReveal width="100%">
-            <h2 className="text-3xl md:text-5xl font-bold mb-6">
-              Ready to <span className="gradient-text">Build Your Future?</span> Today.
-            </h2>
-          </ScrollReveal>
-          <ScrollReveal width="100%" delay={0.2}>
-            <p className="subtitle-text mb-8 max-w-2xl mx-auto text-white">
-              Join us in creating an internet where data has context, people have ownership, and systems work together
-              seamlessly.
-            </p>
-          </ScrollReveal>
-          <ScrollReveal width="100%" delay={0.4}>
-            <div className="flex flex-col sm:flex-row justify-center gap-3">
-              <Button
-                className="rounded-full px-6 py-4 text-base font-medium bg-white text-black hover:bg-white/90 revolut-button w-full sm:w-auto"
-                asChild
-              >
-                <Link href="https://discord.gg/ZwuZaNyuve" target="_blank" rel="noopener noreferrer">
-                  Join the Community
-                </Link>
-              </Button>
-              <Button
-                variant="outline"
-                className="rounded-full px-6 py-4 text-base font-medium border-white text-white bg-transparent hover:bg-white/10 revolut-button w-full sm:w-auto mt-2 sm:mt-0"
-                asChild
-              >
-                <Link href="https://github.com/UOR-Foundation" target="_blank" rel="noopener noreferrer">
-                  Explore GitHub
-                </Link>
-              </Button>
-            </div>
-          </ScrollReveal>
-        </ParallaxSection>
-      </section>
-
-      {/* 6. Footer */}
-      <footer className="w-full py-10 sm:py-16 px-4 sm:px-6 bg-black border-t border-white/10">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-8">
-          <div>
-            <div className="flex items-center space-x-2 mb-4">
-              <div className="w-8 h-8 rounded-md overflow-hidden">
-                <Image
-                  src="/uor_god.svg"
-                  alt="UOR Foundation Logo"
-                  width={32}
-                  height={32}
-                  className="w-full h-full"
-                  loading="lazy"
-                />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-[#5E5CFF]/10 hover:shadow-md transition-all duration-300 hover:border-[#5E5CFF]/30">
+                <div className="h-12 w-12 rounded-full bg-[#5E5CFF]/10 flex items-center justify-center mb-4">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-[#5E5CFF]"
+                  >
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold mb-2">Verifiable Trust</h3>
+                <p className="text-muted-foreground">
+                  Build applications where every step is verifiable and traceable, ensuring consistent and reliable
+                  results across different environments.
+                </p>
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <div className="flex-shrink-0 mt-1">
+                      <Check className="h-4 w-4 text-[#5E5CFF]" />
+                    </div>
+                    <p className="text-sm text-slate-600">Cryptographic verification</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <div className="flex-shrink-0 mt-1">
+                      <Check className="h-4 w-4 text-[#5E5CFF]" />
+                    </div>
+                    <p className="text-sm text-slate-600">Deterministic execution</p>
+                  </div>
+                </div>
               </div>
-              <span className="font-medium text-lg">UOR Foundation</span>
+
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-[#5E5CFF]/10 hover:shadow-md transition-all duration-300 hover:border-[#5E5CFF]/30">
+                <div className="h-12 w-12 rounded-full bg-[#5E5CFF]/10 flex items-center justify-center mb-4">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-[#5E5CFF]"
+                  >
+                    <circle cx="18" cy="18" r="3" />
+                    <circle cx="6" cy="6" r="3" />
+                    <path d="M13 6h3a2 2 0 0 1 2 2v7" />
+                    <path d="M11 18H8a2 2 0 0 1-2-2V9" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold mb-2">Semantic Context</h3>
+                <p className="text-muted-foreground">
+                  Leverage built-in semantic understanding that preserves meaning across different systems, reducing
+                  ambiguity and misalignment.
+                </p>
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <div className="flex-shrink-0 mt-1">
+                      <Check className="h-4 w-4 text-[#5E5CFF]" />
+                    </div>
+                    <p className="text-sm text-slate-600">Universal semantic addressing</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <div className="flex-shrink-0 mt-1">
+                      <Check className="h-4 w-4 text-[#5E5CFF]" />
+                    </div>
+                    <p className="text-sm text-slate-600">Cross-domain interoperability</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-[#5E5CFF]/10 hover:shadow-md transition-all duration-300 hover:border-[#5E5CFF]/30">
+                <div className="h-12 w-12 rounded-full bg-[#5E5CFF]/10 flex items-center justify-center mb-4">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-[#5E5CFF]"
+                  >
+                    <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34" />
+                    <path d="M14 3v4a2 2 0 0 0 2 2h4" />
+                    <path d="M5 3v4a2 2 0 0 0 2 2h4" />
+                    <path d="M16 19h6" />
+                    <path d="M19 16v6" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold mb-2">Composable Systems</h3>
+                <p className="text-muted-foreground">
+                  Create modular applications that can be easily combined with other systems while maintaining semantic
+                  integrity and trust.
+                </p>
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <div className="flex-shrink-0 mt-1">
+                      <Check className="h-4 w-4 text-[#5E5CFF]" />
+                    </div>
+                    <p className="text-sm text-slate-600">Modular architecture</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <div className="flex-shrink-0 mt-1">
+                      <Check className="h-4 w-4 text-[#5E5CFF]" />
+                    </div>
+                    <p className="text-sm text-slate-600">Seamless integration</p>
+                  </div>
+                </div>
+              </div>
             </div>
-            <p className="text-white text-sm">
-              Building the infrastructure for an internet where data is sovereign, semantic, and empowering.
+
+            <div className="mt-12 text-center">
+              <div className="mx-auto max-w-3xl">
+                <PrimeOSWaitlistWidget />
+              </div>
+              <p className="mt-4 text-sm text-muted-foreground">
+                Be among the first to build on PrimeOS when the SDK is released.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section id="connect" className="relative scroll-mt-20">
+          <div className="absolute inset-0 -z-10 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-[#5E5CFF]/10 border-y border-[#5E5CFF]/10"></div>
+          <div className="container py-10 md:py-12 lg:py-16">
+            <div className="grid gap-8 md:gap-10 md:grid-cols-2">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold tracking-tighter lg:text-4xl">Connect</h2>
+                <p className="mt-4 text-muted-foreground">
+                  Become part of our global community of researchers, developers, and innovators. Network with
+                  like-minded individuals and organizations committed to open research.
+                </p>
+                <span className="mt-6 inline-block text-[#5E5CFF] font-medium">
+                  Get involved <ArrowRight className="inline-block h-3.5 w-3.5 ml-1" />
+                </span>
+              </div>
+              <div className="rounded-xl bg-white/80 backdrop-blur-sm p-4 md:p-6">
+                <div className="mb-4">
+                  <h3 className="text-xl md:text-2xl font-bold">
+                    Unlock your full data potential with
+                    <br />
+                    context-aware and verifiable trust
+                  </h3>
+                  <p className="text-muted-foreground mt-1">Fill out the form below and we'll get back to you.</p>
+                </div>
+                {!isSubmitted ? (
+                  <form onSubmit={handleContactSubmit} className="space-y-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="name">Name</Label>
+                      <Input
+                        id="name"
+                        name="name"
+                        value={contactForm.name}
+                        onChange={handleContactChange}
+                        placeholder="Your name"
+                        required
+                        autoComplete="name"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        value={contactForm.email}
+                        onChange={handleContactChange}
+                        placeholder="your.email@example.com"
+                        required
+                        autoComplete="email"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="organization">Organization</Label>
+                      <Input
+                        id="organization"
+                        name="organization"
+                        value={contactForm.organization}
+                        onChange={handleContactChange}
+                        placeholder="Your organization (optional)"
+                        autoComplete="organization"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="message">Message</Label>
+                      <Textarea
+                        id="message"
+                        name="message"
+                        value={contactForm.message}
+                        onChange={handleContactChange}
+                        placeholder="How would you like to get involved?"
+                        className="min-h-[100px]"
+                        required
+                      />
+                    </div>
+                    <div className="flex items-start space-x-2 pt-2">
+                      <Checkbox
+                        id="get-updates"
+                        checked={getUpdates}
+                        onCheckedChange={(checked) => setGetUpdates(checked as boolean)}
+                      />
+                      <div className="grid gap-1.5 leading-none">
+                        <Label
+                          htmlFor="get-updates"
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          Get email updates
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Sign up for Community & Project Updates, Educational Resources, and Event Invitations from the
+                          <strong> UOR Foundation</strong>.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="submit"
+                      className="w-full bg-slate-900 text-white hover:bg-slate-800"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? "Submitting..." : "Submit"}
+                    </Button>
+                    <p className="text-xs text-center text-muted-foreground">
+                      Joining subscribes you to the <strong>UOR Foundation</strong> Newsletter and confirms you agree
+                      with our{" "}
+                      <PrivacyPolicyDialog>
+                        <button className="text-[#5E5CFF] hover:underline">privacy policy</button>
+                      </PrivacyPolicyDialog>
+                      .
+                    </p>
+                  </form>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="mb-4 rounded-full bg-green-100 p-3">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-8 w-8 text-green-600"
+                      >
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                      </svg>
+                    </div>
+                    <h3 className="mb-2 text-xl font-bold">Thank you for reaching out!</h3>
+                    <p className="mb-6 text-muted-foreground">
+                      We've received your message and will get back to you shortly.
+                    </p>
+                    <Button onClick={resetContactForm} variant="outline">
+                      Send another message
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+      <footer className="border-t bg-background">
+        <div className="container flex flex-col gap-6 py-6 md:flex-row md:gap-8 md:py-8 lg:py-12">
+          <div className="flex flex-col gap-2">
+            <Link href="/" className="flex items-center space-x-2">
+              <Image
+                src="/images/uor-logo.png"
+                alt="UOR Foundation Logo"
+                width={32}
+                height={32}
+                style={{ height: "32px", width: "auto" }}
+              />
+            </Link>
+            <p className="text-sm text-muted-foreground">
+              Building open standards for trusted and
+              <br />
+              interconnected internet of AI applications.
             </p>
           </div>
-
-          <div>
-            <h3 className="font-medium mb-4">Resources</h3>
-            <ul className="space-y-3 text-white">
-              <li>
-                <Link href="/about" className="hover:text-white transition-colors">
-                  About Us
-                </Link>
-              </li>
-              <li>
-                <Link href="/product" className="hover:text-white transition-colors">
-                  Product
-                </Link>
-              </li>
-              <li>
-                <Link href="/insights" className="hover:text-white transition-colors">
-                  Insights
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="font-medium mb-4">Community</h3>
-            <ul className="space-y-3 text-white">
-              <li>
-                <Link
-                  href="https://github.com/UOR-Foundation"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white transition-colors"
+          <div className="grid flex-1 grid-cols-2 gap-6 sm:grid-cols-3 md:gap-8">
+            <div className="flex flex-col gap-2">
+              <h3 className="font-medium">Learn</h3>
+              <nav className="flex flex-col gap-2">
+                <button
+                  onClick={() => {
+                    const introButtons = document.querySelectorAll(".intro-button")
+                    if (introButtons && introButtons[0]) (introButtons[0] as HTMLElement).click()
+                  }}
+                  className="text-left text-sm text-muted-foreground hover:text-foreground"
                 >
-                  GitHub
-                </Link>
-              </li>
-              <li>
+                  UOR Foundation
+                </button>
+                <button
+                  onClick={() => {
+                    const introButtons = document.querySelectorAll(".intro-button")
+                    if (introButtons && introButtons[2]) (introButtons[2] as HTMLElement).click()
+                  }}
+                  className="text-left text-sm text-muted-foreground hover:text-foreground"
+                >
+                  UOR Framework
+                </button>
+                <button
+                  onClick={() => {
+                    const introButtons = document.querySelectorAll(".intro-button")
+                    if (introButtons && introButtons[1]) (introButtons[1] as HTMLElement).click()
+                  }}
+                  className="text-left text-sm text-muted-foreground hover:text-foreground"
+                >
+                  PrimeOS
+                </button>
+              </nav>
+            </div>
+            <div className="flex flex-col gap-2">
+              <h3 className="font-medium">Build</h3>
+              <nav className="flex flex-col gap-2">
+                <a href="#build" className="text-sm text-muted-foreground hover:text-foreground">
+                  Foundation Opportunities
+                </a>
+                <a href="#build" className="text-sm text-muted-foreground hover:text-foreground">
+                  UOR Framework Docs
+                </a>
+                <a href="#build" className="text-sm text-muted-foreground hover:text-foreground">
+                  PrimeOS SDK
+                </a>
+              </nav>
+            </div>
+            <div className="flex flex-col gap-2">
+              <h3 className="font-medium">Connect</h3>
+              <nav className="flex flex-col gap-2">
                 <Link
                   href="https://discord.gg/ZwuZaNyuve"
                   target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white transition-colors"
+                  rel="noreferrer"
+                  className="text-sm text-muted-foreground hover:text-foreground"
                 >
-                  Discord
+                  Community
                 </Link>
-              </li>
-              <li>
-                <Link href="#" className="hover:text-white transition-colors">
-                  Twitter
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="font-medium mb-4">Legal</h3>
-            <ul className="space-y-3 text-white">
-              <li>
-                <Link href="#" className="hover:text-white transition-colors">
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="hover:text-white transition-colors">
-                  Terms of Service
-                </Link>
-              </li>
-            </ul>
+                <button
+                  onClick={() => {
+                    const contactButton = document.querySelector("[data-contact-trigger]") as HTMLButtonElement
+                    if (contactButton) contactButton.click()
+                  }}
+                  className="text-left text-sm text-muted-foreground hover:text-foreground"
+                >
+                  Contact
+                </button>
+              </nav>
+            </div>
           </div>
         </div>
-
-        <div className="max-w-7xl mx-auto mt-12 pt-6 border-t border-white/10 text-center text-sm text-white">
-          <p>© 2025 UOR Foundation. All rights reserved.</p>
+        <div className="container border-t py-6">
+          <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
+            <div className="flex items-center gap-2">
+              <p className="text-center text-sm text-muted-foreground md:text-left">
+                © 2025 The <strong>UOR Foundation</strong>. All rights reserved.
+              </p>
+              <PrivacyPolicyDialog>
+                <button className="text-sm text-muted-foreground hover:text-foreground underline">
+                  Privacy Policy
+                </button>
+              </PrivacyPolicyDialog>
+            </div>
+            <div className="flex gap-4">
+              <Link href="https://www.linkedin.com/company/uor-foundation" target="_blank" rel="noreferrer">
+                <Linkedin className="h-5 w-5 text-muted-foreground transition-colors hover:text-foreground" />
+                <span className="sr-only">LinkedIn</span>
+              </Link>
+              <Link href="https://github.com/UOR-Foundation" target="_blank" rel="noreferrer">
+                <Github className="h-5 w-5 text-muted-foreground transition-colors hover:text-foreground" />
+                <span className="sr-only">GitHub</span>
+              </Link>
+              <Link href="https://discord.gg/ZwuZaNyuve" target="_blank" rel="noreferrer">
+                <Image
+                  src="/images/discord2.png"
+                  alt="Discord"
+                  width={20}
+                  height={20}
+                  className="opacity-60 hover:opacity-80 transition-opacity duration-200"
+                />
+                <span className="sr-only">Discord</span>
+              </Link>
+            </div>
+          </div>
         </div>
       </footer>
-      <PrefetchLinks paths={["/about", "/product", "/insights", "/prime-sdk", "/prime-appstore", "/prime-os"]} />
-
-      {/* Popup Overlay */}
-      {popupContent.isOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-black-300 border border-white/20 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b border-white/10">
-              <h3 className="text-xl font-bold">{popupContent.title}</h3>
-              <button onClick={closePopup} className="p-1 rounded-full hover:bg-white/10 transition-colors">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="p-6 text-white/90">{popupContent.content}</div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
