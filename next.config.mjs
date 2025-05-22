@@ -1,18 +1,6 @@
-let userConfig = undefined
-try {
-  // try to import ESM first
-  userConfig = await import('./v0-user-next.config.mjs')
-} catch (e) {
-  try {
-    // fallback to CJS import
-    userConfig = await import("./v0-user-next.config");
-  } catch (innerError) {
-    // ignore error
-  }
-}
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: true,
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -20,37 +8,22 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
+    formats: ['image/avif', 'image/webp'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'blob.v0.dev',
+        port: '',
+        pathname: '/**',
+      },
+    ],
     unoptimized: true,
   },
-  output: 'export',
-  // Not setting basePath or assetPrefix at build time
-  // We'll detect paths at runtime via client-side detection
-  // Add trailing slash for better GitHub Pages compatibility
-  trailingSlash: true,
+  // Disable the experimental optimizeCss feature that requires critters
   experimental: {
-    webpackBuildWorker: true,
-    parallelServerBuildTraces: true,
-    parallelServerCompiles: true,
+    optimizeCss: false, // Changed from true to false
+    optimizePackageImports: ['lucide-react'],
   },
-}
-
-if (userConfig) {
-  // ESM imports will have a "default" property
-  const config = userConfig.default || userConfig
-
-  for (const key in config) {
-    if (
-      typeof nextConfig[key] === 'object' &&
-      !Array.isArray(nextConfig[key])
-    ) {
-      nextConfig[key] = {
-        ...nextConfig[key],
-        ...config[key],
-      }
-    } else {
-      nextConfig[key] = config[key]
-    }
-  }
 }
 
 export default nextConfig
